@@ -1,0 +1,633 @@
+
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rezervácia stolov – zdieľaná verzia (v10)</title>
+  <style>
+    :root { --bg:#f6f8fb; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --shadow: 0 10px 30px rgba(2,6,23,.06); --holiday:#f3f4f6; --holiday-text:#9ca3af; --free:#ecfdf5; --free-border:#86efac; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; overflow-x:hidden; }
+    .container { max-width: 100%; margin: 0 auto; padding: 16px; } /* širšie, aby sa zmestilo 7×180px + medzery */
+    header.sticky { position: sticky; top:0; background: rgba(255,255,255,.9); border-bottom:1px solid var(--border); z-index:10; backdrop-filter: blur(6px); }
+    h1 { font-size: 20px; margin: 0; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .btn { border:1px solid var(--border); background:#fff; border-radius:12px; padding:8px 12px; cursor:pointer; font-size: 13px; }
+    .btn:hover { background:#f3f4f6; }
+    .btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+    .pill { border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size: 11px; }
+    input, select { border:1px solid var(--border); border-radius:12px; padding:8px 10px; background:#fff; }
+    .muted { color: var(--muted); }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
+    .grid { display:grid; gap:6px; }
+    .grid-7 { grid-template-columns: repeat(7, minmax(120px, 1fr)); } /* širšie stĺpce */
+    .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease; display:flex; flex-direction:column; }
+    .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
+    .day:focus { outline: none; }
+    .day.weekend, .day.holiday { background: var(--holiday); color: var(--holiday-text); }
+    .day.today { box-shadow: 0 0 0 2px var(--accent) inset; }
+    .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
+    .day .reserve-mini { margin-top:6px; }
+    .day.disabled .reserve-mini { display:none; }
+    .seatlist { margin-top:6px; display:grid; grid-template-columns: 1fr; gap:4px; font-size:12px; line-height:1.2; }
+    .seatline { display:flex; align-items:center; gap:6px; min-height:22px; padding:2px 6px; border-radius:8px; }
+    .seatline.free { background: var(--free); }
+    .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
+    .seatline.free .seatno { border-color: var(--free-border); }
+    .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
+    .lock { font-size: 12px; margin-left: 4px; }
+    .layout { display:grid; grid-template-columns: minmax(0, 1fr) 420px; gap:12px; align-items:start; }
+    .sidebar { position: sticky; top:72px; display: grid; gap:12px; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+    .plan-wrap { padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); }
+    .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
+    .status { font-size:12px; }
+    /* SVG */
+    svg { width:100%; height:auto; display:block; }
+    .desk { fill:#e5e7eb; stroke:#cbd5e1; stroke-width:1; }
+    .desk-base { fill:#d1d5db; stroke:#cbd5e1; stroke-width:1; }
+    .desk-num { font: 700 18px/1 Inter, system-ui, sans-serif; fill:#394a64; text-anchor:middle; }
+    .chair { fill:#ffffff; stroke:#93c5fd; stroke-width:3; filter:url(#shadow); }
+    .chair.occ { fill:#dbeafe; stroke:#2563eb; }
+    .chair-txt { font: 700 12px/1 Inter, system-ui, sans-serif; fill:#0f172a; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+    .lock-icon { font: 700 10px/1 Inter, system-ui, sans-serif; fill:#1f2937; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+    /* Modal overlay */
+    .overlay { position: fixed; inset:0; background: rgba(2,6,23,.45); display:none; align-items:center; justify-content:center; padding:16px; z-index: 50; }
+    .overlay.show { display:flex; }
+    .modal { width:100%; max-width: 700px; background:#fff; border-radius:16px; border:1px solid var(--border); overflow:hidden; box-shadow: var(--shadow); }
+    .modal header, .modal footer { padding:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; }
+    .modal footer { border-top:1px solid var(--border); border-bottom:none; }
+    .seat { display:flex; align-items:center; justify-content:flex-end; border:1px solid var(--border); border-radius:12px; padding:8px; }
+    .seat.mine { background:#ecfdf5; }
+    .seats { display:grid; gap:8px; }
+    /* Team list */
+    .team-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:4px 8px; margin:4px; background:#fff; }
+    .team-chip button { border:0; background:transparent; cursor:pointer; font-weight:700; color:#ef4444; }
+  </style>
+</head>
+<body>
+  <header class="sticky">
+    <div class="container row" style="justify-content: space-between;">
+      <h1>Rezervácia stolov – zdieľaná verzia</h1>
+      <div class="row">
+        <button class="btn" id="nav-prev">←</button>
+        <select id="month"></select>
+        <input id="year" type="number" style="width:90px" />
+        <button class="btn" id="nav-next">→</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="open-settings">Nastavenia</button>
+        <span class="status" id="mode-label">Režim dát: Lokálne</span>
+        <button class="btn" id="connect-shared">Pripojiť zdieľaný súbor…</button>
+        <button class="btn" id="disconnect-shared" style="display:none;">Odpojiť</button>
+        <button class="btn" id="export">Export</button>
+        <label class="btn" for="import-file" style="cursor:pointer">Import</label>
+        <input id="import-file" type="file" accept="application/json" style="display:none" />
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="layout">
+      <div>
+        <div id="today-card" class="card" style="margin-bottom:6px;"></div>
+
+        <div class="row" style="margin-bottom:6px;">
+          <div class="row">
+            <span class="muted" style="font-size:14px">Moje meno:</span>
+            <select id="name"></select>
+          </div>
+          <div class="row">
+            <span class="muted" style="font-size:14px">alebo vlastné:</span>
+            <input id="custom-name" placeholder="Zadaj meno" />
+            <button class="btn" id="clear-custom">Vymazať</button>
+          </div>
+          <div class="muted" style="font-size:12px">* 1 človek = 1 stôl za deň (pri druhom mieste presunieme).</div>
+        </div>
+
+        <div class="row muted" style="font-size:12px; margin-bottom:4px;">
+          <div style="flex:1; text-align:center;">Po</div>
+          <div style="flex:1; text-align:center;">Ut</div>
+          <div style="flex:1; text-align:center;">St</div>
+          <div style="flex:1; text-align:center;">Št</div>
+          <div style="flex:1; text-align:center;">Pi</div>
+          <div style="flex:1; text-align:center;">So</div>
+          <div style="flex:1; text-align:center;">Ne</div>
+        </div>
+
+        <div class="grid grid-7" id="calendar"></div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="plan-wrap" style="width:100%;">
+          <div class="plan-title">
+            <span>Rozloženie stolov</span>
+            <span class="muted" id="plan-date"></span>
+          </div>
+          <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
+            <defs>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0ea5e9" flood-opacity=".10"/>
+              </filter>
+            </defs>
+            <!-- LEFT block -->
+            <rect class="desk" x="90" y="40" width="160" height="160" rx="12"/>
+            <rect class="desk-base" x="75" y="184" width="190" height="24" rx="8"/>
+            <!-- RIGHT column far to the right for large gap -->
+            <rect class="desk" x="400" y="28" width="60" height="200" rx="12"/>
+
+            <!-- Desk numbers -->
+            <text class="desk-num" x="140" y="75">1</text>
+            <text class="desk-num" x="200" y="75">2</text>
+            <text class="desk-num" x="430" y="65">3</text>
+            <text class="desk-num" x="140" y="140">4</text>
+            <text class="desk-num" x="200" y="140">5</text>
+            <text class="desk-num" x="430" y="130">6</text>
+            <text class="desk-num" x="430" y="195">7</text>
+
+            <!-- Chairs – symmetric -->
+            <circle id="s1" class="chair" cx="70" cy="75" r="16"></circle>
+            <text id="t1" class="chair-txt" x="70" y="75"></text>
+            <text id="l1" class="lock-icon" x="85" y="65"></text>
+
+            <circle id="s4" class="chair" cx="70" cy="140" r="16"></circle>
+            <text id="t4" class="chair-txt" x="70" y="140"></text>
+            <text id="l4" class="lock-icon" x="85" y="130"></text>
+
+            <circle id="s2" class="chair" cx="270" cy="75" r="16"></circle>
+            <text id="t2" class="chair-txt" x="270" y="75"></text>
+            <text id="l2" class="lock-icon" x="285" y="65"></text>
+
+            <circle id="s5" class="chair" cx="270" cy="140" r="16"></circle>
+            <text id="t5" class="chair-txt" x="270" y="140"></text>
+            <text id="l5" class="lock-icon" x="285" y="130"></text>
+
+            <circle id="s3" class="chair" cx="370" cy="65" r="16"></circle>
+            <text id="t3" class="chair-txt" x="370" y="65"></text>
+            <text id="l3" class="lock-icon" x="385" y="55"></text>
+
+            <circle id="s6" class="chair" cx="370" cy="130" r="16"></circle>
+            <text id="t6" class="chair-txt" x="370" y="130"></text>
+            <text id="l6" class="lock-icon" x="385" y="120"></text>
+
+            <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
+            <text id="t7" class="chair-txt" x="370" y="195"></text>
+            <text id="l7" class="lock-icon" x="385" y="185"></text>
+          </svg>
+
+          <div class="row" style="justify-content:flex-end; margin-top:10px;">
+            <button class="btn primary" id="reserve-btn">Rezervovať</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <header>
+        <div id="modal-title" style="font-weight:700"></div>
+        <button class="btn" id="close-modal">Zavrieť</button>
+      </header>
+      <div class="content" style="padding:12px">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <input type="checkbox" id="repeat-weekly" />
+          <span>Opakovať každý týždeň v tomto mesiaci (rovnaký deň v týždni)</span>
+        </label>
+        <div id="seats" class="seats"></div>
+        <div class="row" style="justify-content:flex-end; margin-top:10px;">
+<button class="btn" id="modal-done">Hotovo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nastavenia -->
+  <div id="settings-overlay" class="overlay">
+    <div class="modal">
+      <header>
+        <div style="font-weight:700">Nastavenia</div>
+        <button class="btn" id="close-settings">Zavrieť</button>
+      </header>
+      <div class="content" style="padding:12px;">
+        <div style="font-weight:600; margin-bottom:6px">Vlastník tohto počítača</div>
+        <input id="owner-name" placeholder="Zadaj meno (bude vždy prvé v poradí)" style="width:260px" />
+
+        <div style="height:12px"></div>
+        <div style="font-weight:600; margin-bottom:6px">Štýl mien v kalendári</div>
+        <label class="row"><input type="radio" name="labelstyle" id="style-surname" checked /> Priezvisko</label>
+        <label class="row"><input type="radio" name="labelstyle" id="style-initials" /> Iniciály</label>
+
+        <div style="height:12px"></div>
+        <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">Zoznam sa zobrazuje v rozbaľovačke „Moje meno“. Zoradené podľa priezviska, vlastník PC je prvý.</div>
+        <div class="row">
+          <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
+          <button class="btn" id="add-member">Pridať</button>
+        </div>
+        <div id="team-list" style="margin-top:8px;"></div>
+
+        <div class="row" style="justify-content:flex-end; margin-top:12px">
+          <button class="btn" id="save-settings">Uložiť</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var DEFAULT_SEATS = 7;
+    var TEAM_DEFAULT = [
+      "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
+      "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
+      "Margaréta Cifrová","Dávid Jablonický","Peter Marko","Michal Michalec","Ľubica Hadbavná"
+    ];
+    var STORAGE_KEY = "desk-reservation-data-shared-v10";
+    var SETTINGS_KEY = "desk-reservation-settings-shared-v10";
+    var TEAM_KEY = "desk-reservation-team-v10";
+
+    function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
+    function loadSettings(){ try{ var raw=localStorage.getItem(SETTINGS_KEY); return raw?JSON.parse(raw):{ ownerName:"", labelStyle:"surname" }; }catch(e){ return { ownerName:"", labelStyle:"surname" }; } }
+    function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+    function loadTeam(){ try{ var raw=localStorage.getItem(TEAM_KEY); return raw?JSON.parse(raw):sortBySurname(TEAM_DEFAULT); }catch(e){ return sortBySurname(TEAM_DEFAULT); } }
+    function saveTeam(){ localStorage.setItem(TEAM_KEY, JSON.stringify(team)); }
+
+    var settings = loadSettings();
+    var team = loadTeam();
+
+    function namesOrdered(){
+      var list = sortBySurname(team);
+      var own = (settings.ownerName||"").trim();
+      if(own){
+        list = list.filter(function(n){ return n.toLowerCase() !== own.toLowerCase(); });
+        list.unshift(own);
+      }
+      return list;
+    }
+
+    // State
+    var schedule = {}; // date -> { seat: name }
+    var ui = { today:new Date(), year:new Date().getFullYear(), month:new Date().getMonth(), selectedName:"", customName:"", focusDate:new Date() };
+    ui.selectedName = namesOrdered()[0];
+
+    // Data mode (shared file)
+    var shared = { enabled:false, handle:null, timer:null, lastText:"" };
+
+    // Helpers
+    function fmtDate(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+    function parseDateStr(s){ var p=s.split("-"); return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)); }
+    function firstDayOfMonth(y,m){ return new Date(y,m,1); }
+    function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+    function myCurrentName(){ return (ui.customName.trim()||ui.selectedName).trim(); }
+    function labelOf(name, circle){
+      if(!name) return "";
+      if(circle){ var p=name.split(" "); return ((p[0]?p[0][0]:"")+(p[p.length-1]?p[p.length-1][0]:"")).toUpperCase(); }
+      if((settings.labelStyle||"surname")==="initials"){ var x=name.split(" "); return ((x[0]?x[0][0]:"")+(x[x.length-1]?x[x.length-1][0]:"")).toUpperCase(); }
+      return name.split(" ").pop();
+    }
+
+    // Holidays/weekends
+    function easterSunday(year){
+      var a = year % 19; var b = Math.floor(year / 100); var c = year % 100;
+      var d = Math.floor(b / 4); var e = b % 4; var f = Math.floor((b + 8) / 25);
+      var g = Math.floor((b - f + 1) / 3); var h = (19*a + b - d - g + 15) % 30;
+      var i = Math.floor(c / 4); var k = c % 4; var l = (32 + 2*e + 2*i - h - k) % 7;
+      var m = Math.floor((a + 11*h + 22*l) / 451); var month = Math.floor((h + l - 7*m + 114) / 31);
+      var day = ((h + l - 7*m + 114) % 31) + 1; return new Date(year, month-1, day);
+    }
+    function addDays(d, n){ var dd=new Date(d.getTime()); dd.setDate(dd.getDate()+n); return dd; }
+    function isWeekend(d){ var wd=d.getDay(); return wd===0 || wd===6; }
+    function isHoliday(d){
+      var y=d.getFullYear(), m=d.getMonth()+1, day=d.getDate();
+      var fixed = ["01-01","01-06","05-01","05-08","07-05","08-29","09-01","09-15","11-01","12-24","12-25","12-26"];
+      var key = ("0"+m).slice(-2)+"-"+("0"+day).slice(-2);
+      if(fixed.indexOf(key)!==-1) return true;
+      var es = easterSunday(y); var goodFriday = addDays(es, -2); var easterMonday = addDays(es, +1);
+      if(d.toDateString()===goodFriday.toDateString()) return true;
+      if(d.toDateString()===easterMonday.toDateString()) return true;
+      return false;
+    }
+    function isNonWorking(d){ return isWeekend(d) || isHoliday(d); }
+
+    function getDaySeats(dateStr){
+      var rec = schedule[dateStr];
+      if(rec) return rec;
+      var empty={}; for(var i=1;i<=DEFAULT_SEATS;i++) empty[i]="";
+      return empty;
+    }
+
+    function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule)); }
+    function loadLocal(){ try{ var raw=localStorage.getItem(STORAGE_KEY); schedule = raw?JSON.parse(raw):{}; }catch(e){ schedule={}; } }
+
+    async function connectShared(){
+      try{
+        const [handle] = await window.showOpenFilePicker({
+          multiple:false,
+          types:[{description:"Rezervácie JSON", accept: {"application/json": [".json"]}}]
+        });
+        shared.handle = handle;
+        shared.enabled = true;
+        document.getElementById("mode-label").textContent = "Režim dát: Zdieľaný súbor";
+        document.getElementById("connect-shared").style.display="none";
+        document.getElementById("disconnect-shared").style.display="inline-block";
+        await readShared(true);
+        if(shared.timer) clearInterval(shared.timer);
+        shared.timer = setInterval(readShared, 2000);
+      }catch(err){ alert("Výber zdieľaného súboru zrušený alebo nepodporovaný prehliadač."); }
+    }
+    async function disconnectShared(){
+      shared.enabled=false; shared.handle=null; if(shared.timer) clearInterval(shared.timer); shared.timer=null;
+      document.getElementById("mode-label").textContent = "Režim dát: Lokálne";
+      document.getElementById("connect-shared").style.display="inline-block";
+      document.getElementById("disconnect-shared").style.display="none";
+    }
+    async function writeShared(){
+      if(!shared.enabled || !shared.handle) return;
+      const perm = await shared.handle.queryPermission({mode:"readwrite"});
+      if(perm !== "granted"){
+        const req = await shared.handle.requestPermission({mode:"readwrite"});
+        if(req !== "granted"){ alert("Nemáme povolenie zapisovať do zdieľaného súboru."); return; }
+      }
+      const writable = await shared.handle.createWritable();
+      const txt = JSON.stringify(schedule);
+      await writable.write(txt);
+      await writable.close();
+      shared.lastText = txt;
+    }
+    async function readShared(initial){
+      if(!shared.enabled || !shared.handle) return;
+      const perm = await shared.handle.queryPermission({mode:"read"});
+      if(perm !== "granted"){
+        const req = await shared.handle.requestPermission({mode:"read"});
+        if(req !== "granted"){ return; }
+      }
+      const file = await shared.handle.getFile();
+      const txt = await file.text();
+      if(initial || txt !== shared.lastText){
+        try{ const data = JSON.parse(txt||"{}"); schedule = data || {}; shared.lastText = txt; render(); }
+        catch(e){ console.warn("Zdieľaný súbor nie je validný JSON."); }
+      }
+    }
+
+    function applyChanges(){ if(shared.enabled){ writeShared(); } else { saveLocal(); } render(); }
+
+    function allSameWeekdayDatesInMonth(baseDate){
+      var y=baseDate.getFullYear(), m=baseDate.getMonth(), wd=baseDate.getDay();
+      var total=daysInMonth(y,m); var list=[];
+      for(var d=1; d<=total; d++){ var dt=new Date(y,m,d); if(dt.getDay()===wd && !isNonWorking(dt)) list.push(dt); }
+      return list;
+    }
+
+    function renderPlan(dStr){
+      var s=getDaySeats(dStr);
+      for(var i=1;i<=DEFAULT_SEATS;i++){
+        var c=document.getElementById("s"+i), t=document.getElementById("t"+i), li=document.getElementById("l"+i), n=s[i];
+        if(n){ c.classList.add("occ"); t.textContent=labelOf(n,true); if(li) li.textContent="🔒"; } else { c.classList.remove("occ"); t.textContent=""; if(li) li.textContent=""; }
+      }
+      document.getElementById("plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
+    }
+
+    function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
+
+    function render(){
+      // Month/year
+      var monthSel=document.getElementById("month"); monthSel.innerHTML="";
+      var months=["Január","Február","Marec","Apríl","Máj","Jún","Júl","August","September","Október","November","December"];
+      for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
+      document.getElementById("year").value = ui.year;
+
+      // Names
+      var sel=document.getElementById("name"); sel.innerHTML="";
+      var list=namesOrdered(); for(var j=0;j<list.length;j++){ var op=document.createElement("option"); op.value=list[j]; op.textContent=list[j]; sel.appendChild(op); }
+      if(list.indexOf(ui.selectedName)===-1) ui.selectedName=list[0]; sel.value=ui.selectedName;
+      document.getElementById("custom-name").value = ui.customName;
+
+      // Today card
+      var todayStr=fmtDate(new Date()); var todaySeats=getDaySeats(todayStr); var todayList=[];
+      for(var s in todaySeats){ if(todaySeats[s]) todayList.push([parseInt(s,10), todaySeats[s]]); }
+      todayList.sort(function(a,b){ return a[0]-b[0]; });
+      var card=document.getElementById("today-card"); card.innerHTML="";
+      var title=document.createElement("div"); title.style.fontWeight="600"; title.style.fontSize="14px"; title.style.marginBottom="6px";
+      title.textContent="Dnes v kancli ("+(new Date()).toLocaleDateString("sk-SK")+"): "+todayList.length+" ľudí";
+      card.appendChild(title);
+      if(todayList.length){
+        var wrap=document.createElement("div"); wrap.className="row"; wrap.style.flexWrap="wrap";
+        for(var t=0;t<todayList.length;t++){ var pill=document.createElement("span"); pill.className="pill"; pill.textContent=labelOf(todayList[t][1],false)+" (stôl "+todayList[t][0]+")"; wrap.appendChild(pill); }
+        card.appendChild(wrap);
+      } else {
+        var empty=document.createElement("div"); empty.className="muted"; empty.style.fontSize="14px"; empty.textContent="Zatiaľ nikto."; card.appendChild(empty);
+      }
+
+      // Calendar
+      var cal=document.getElementById("calendar"); cal.innerHTML="";
+      var first=firstDayOfMonth(ui.year, ui.month); var start=(first.getDay()+6)%7; var total=daysInMonth(ui.year, ui.month);
+      for(var i=0;i<start;i++){ var pad=document.createElement("div"); cal.appendChild(pad); }
+      for(var d=1; d<=total; d++){
+        var dt=new Date(ui.year, ui.month, d); var dStr=fmtDate(dt);
+        var seats=getDaySeats(dStr), taken=0; for(var k in seats){ if(seats[k]) taken++; }
+
+        var cell=document.createElement("div"); cell.className="day"; cell.setAttribute("role","button"); cell.tabIndex=0;
+        var nonWork = isNonWorking(dt);
+        if(nonWork){ cell.classList.add("holiday"); cell.classList.add("disabled"); }
+
+        if([6,0].indexOf(dt.getDay())!==-1) cell.classList.add("weekend");
+        if(dStr===fmtDate(new Date())) cell.classList.add("today");
+
+        var top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
+        var l=document.createElement("div"); l.style.fontWeight="700"; l.textContent=d+".";
+        var r=document.createElement("div"); r.className="pill"; r.textContent="obs.: "+taken+"/"+DEFAULT_SEATS;
+        top.appendChild(l); top.appendChild(r); cell.appendChild(top);
+
+        if(!nonWork){
+          var listDiv=document.createElement("div"); listDiv.className="seatlist";
+          for(var idx=1; idx<=DEFAULT_SEATS; idx++){
+            var line=document.createElement("div"); line.className="seatline"+(seats[idx] ? "" : " free");
+            var no=document.createElement("span"); no.className="seatno"; no.textContent=idx;
+            var who=document.createElement("span"); who.className="name";
+            if(seats[idx]){
+              who.innerHTML="<b>"+labelOf(seats[idx],false)+"</b>";
+              line.appendChild(no); line.appendChild(who);
+              var lockSpan=document.createElement("span"); lockSpan.className="lock"; lockSpan.textContent="🔒";
+              line.appendChild(lockSpan);
+            } else {
+              who.innerHTML="";
+              line.appendChild(no); line.appendChild(who);
+            }
+            listDiv.appendChild(line);
+          }
+          cell.appendChild(listDiv);
+        } else {
+          var note=document.createElement("div"); note.className="muted"; note.style.marginTop="8px"; note.textContent = isWeekend(dt) ? "Víkend" : "Sviatok";
+          cell.appendChild(note);
+        }
+
+        // Footer with per-day reserve button (only for working days)
+        var footer=document.createElement("div"); footer.className="footer";
+        if(!nonWork){
+          var btn=document.createElement("button"); btn.className="btn reserve-mini"; btn.textContent="Rezervuj";
+          (function(ds){ btn.onclick=function(e){ e.stopPropagation(); openModal(ds); }; })(dStr);
+          footer.appendChild(btn);
+        }
+        cell.appendChild(footer);
+
+        (function(ds){ cell.onclick=function(){ selectDay(ds); }; })(dStr);
+        cell.onkeydown=function(e){ if(e.key==="Enter" || e.key===" "){ e.preventDefault(); cell.click(); } };
+
+        cal.appendChild(cell);
+      }
+
+      renderPlan(fmtDate(ui.focusDate||new Date()));
+    }
+
+    // modal code
+    function openModal(dateStr){
+      var dt=parseDateStr(dateStr);
+      if(isNonWorking(dt)){ return; }
+      var ov=document.getElementById("overlay"); ov.classList.add("show");
+      document.getElementById("modal-title").textContent=dt.toLocaleDateString("sk-SK", {day:"2-digit", month:"2-digit", year:"numeric"});
+      var seatsDiv=document.getElementById("seats"); seatsDiv.innerHTML="";
+      var seats=getDaySeats(dateStr); var myName=myCurrentName();
+      var repeatWeekly=document.getElementById("repeat-weekly");
+
+      function setSeatSingleLocal(ds, seat){
+        var s=getDaySeats(ds); var cur=s[seat];
+        if(cur && cur!==myName){ return "conflict"; } // strictly no overwrite
+        for(var k=1;k<=DEFAULT_SEATS;k++){ if(k!==seat && s[k]===myName) s[k]=""; }
+        s[seat]=myName;
+        var next={}; for(var key in schedule) next[key]=schedule[key]; next[ds]=s; schedule=next; return true;
+      }
+
+      function allSameWeekdayDatesInMonth(baseDate){
+        var y=baseDate.getFullYear(), m=baseDate.getMonth(), wd=baseDate.getDay();
+        var total=daysInMonth(y,m); var list=[];
+        for(var d=1; d<=total; d++){ var dt=new Date(y,m,d); if(dt.getDay()===wd && !isNonWorking(dt)) list.push(dt); }
+        return list;
+      }
+
+      function reserve(seat){
+        if(!repeatWeekly.checked){
+          var res=setSeatSingleLocal(dateStr, seat);
+          if(res==="conflict"){
+            alert("Toto miesto je už obsadené, nie je možné rezervovať.");
+          } else {
+            applyChanges();
+          }
+          return;
+        }
+        var dates = allSameWeekdayDatesInMonth(dt);
+        var skipped=[];
+        for(var i=0;i<dates.length;i++){
+          var ds=fmtDate(dates[i]);
+          if(isNonWorking(dates[i])) continue;
+          var r=setSeatSingleLocal(ds, seat);
+          if(r==="conflict") skipped.push(ds);
+        }
+        applyChanges();
+        if(skipped.length){
+          alert("Niektoré dni sa neuložili, lebo miesto je už obsadené: " + skipped.join(", "));
+        }
+      }
+
+      for(var seat=1; seat<=DEFAULT_SEATS; seat++){
+        var name=seats[seat]||""; var isMine = (name && name===myName);
+        var row=document.createElement("div"); row.className="seat"+(isMine?" mine":"");
+        var left=document.createElement("div"); left.className="row";
+        var badge=document.createElement("div"); badge.className="pill"; badge.textContent=seat;
+        var label=document.createElement("div"); label.style.fontSize="14px"; label.innerHTML=name?("<b>"+name+"</b>"):("<span class='muted'>voľné</span>");
+        left.appendChild(badge); left.appendChild(label);
+        var right=document.createElement("div"); right.className="row";
+        var btnR=document.createElement("button"); btnR.className="btn"; 
+        if(!name){
+          btnR.textContent="Obsadiť";
+          (function(s){ btnR.addEventListener("click", function(){ reserve(s); openModal(dateStr); }); })(seat);
+        } else if(isMine){
+          btnR.textContent="Upraviť/PRESUNÚŤ";
+          (function(s){ btnR.addEventListener("click", function(){ reserve(s); openModal(dateStr); }); })(seat);
+        } else {
+          btnR.textContent="Obsadené 🔒";
+          (function(){ btnR.addEventListener("click", function(){ alert("Toto miesto je už obsadené, nie je možné rezervovať."); }); })();
+        }
+        right.appendChild(btnR);
+        if(isMine){
+          var btnC=document.createElement("button"); btnC.className="btn"; btnC.textContent="Zrušiť";
+          (function(s){ btnC.addEventListener("click", function(){ var ss=getDaySeats(dateStr); ss[s]=""; var next={}; for(var key in schedule) next[key]=schedule[key]; next[dateStr]=ss; schedule=next; applyChanges(); openModal(dateStr); }); })(seat);
+          right.appendChild(btnC);
+        }
+        row.appendChild(left); row.appendChild(right); seatsDiv.appendChild(row);
+      }
+      document.getElementById("modal-done").onclick=function(){ document.getElementById("overlay").classList.remove("show"); };
+      document.getElementById("close-modal").onclick=function(){ document.getElementById("overlay").classList.remove("show"); };
+    }
+
+    // Settings: team management
+    function renderTeamList(){
+      var wrap = document.getElementById("team-list"); wrap.innerHTML="";
+      var list = sortBySurname(team);
+      list.forEach(function(name){
+        var chip=document.createElement("span"); chip.className="team-chip";
+        var txt=document.createElement("span"); txt.textContent=name;
+        var del=document.createElement("button"); del.textContent="×";
+        del.title="Odstrániť člena";
+        del.onclick=function(){
+          if(!confirm("Odstrániť '"+name+"' zo zoznamu? Existujúce rezervácie ostanú, len sa meno skryje z výberu.")) return;
+          team = team.filter(function(n){ return n!==name; });
+          saveTeam(); renderTeamList(); render();
+        };
+        chip.appendChild(txt); chip.appendChild(del); wrap.appendChild(chip);
+      });
+    }
+
+    document.getElementById("add-member").onclick=function(){
+      var inp=document.getElementById("new-member"); var v=(inp.value||"").trim();
+      if(!v) return;
+      // dedupe (case-insensitive)
+      var exists = team.some(function(n){ return n.toLowerCase()===v.toLowerCase(); });
+      if(exists){ alert("Toto meno už v tíme je."); return; }
+      team.push(v); saveTeam(); inp.value=""; renderTeamList(); render();
+    };
+
+    // Events
+    document.getElementById("nav-prev").onclick=function(){ var m=ui.month-1; if(m<0){ ui.month=11; ui.year--; } else ui.month=m; render(); };
+    document.getElementById("nav-next").onclick=function(){ var m=ui.month+1; if(m>11){ ui.month=0; ui.year++; } else ui.month=m; render(); };
+    document.getElementById("month").onchange=function(e){ ui.month=parseInt(e.target.value,10); render(); };
+    document.getElementById("year").oninput=function(e){ var v=parseInt(e.target.value,10); if(!isNaN(v)) ui.year=v; };
+    document.getElementById("name").onchange=function(e){ ui.selectedName=e.target.value; };
+    document.getElementById("custom-name").oninput=function(e){ ui.customName=e.target.value; };
+    document.getElementById("clear-custom").onclick=function(){ ui.customName=""; document.getElementById("custom-name").value=""; };
+    document.getElementById("open-settings").onclick=function(){
+      document.getElementById("settings-overlay").classList.add("show");
+      document.getElementById("owner-name").value=settings.ownerName||"";
+      document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
+      document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
+      renderTeamList();
+    };
+    document.getElementById("save-settings").onclick=function(){
+      settings.ownerName=(document.getElementById("owner-name").value||"").trim();
+      settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
+      saveSettings();
+      ui.selectedName=namesOrdered()[0];
+      document.getElementById("settings-overlay").classList.remove("show");
+      render();
+    };
+    document.getElementById("close-settings").onclick=function(){ document.getElementById("settings-overlay").classList.remove("show"); };
+
+    document.getElementById("export").onclick=function(){ var blob=new Blob([JSON.stringify(schedule,null,2)], {type:"application/json"}); var url=URL.createObjectURL(blob); var a=document.createElement("a"); a.href=url; a.download="rezervacie.json"; a.click(); URL.revokeObjectURL(url); };
+
+    document.getElementById("import-file").addEventListener("change", function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(){ try{ schedule=JSON.parse(r.result)||{}; saveLocal(); render(); alert("Dáta importované."); }catch(err){ alert("Súbor nie je platný JSON."); } }; r.readAsText(f); e.target.value=""; });
+
+    document.getElementById("connect-shared").onclick=connectShared;
+    document.getElementById("disconnect-shared").onclick=disconnectShared;
+    document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
+
+    // init
+    function initFocus() { ui.focusDate = new Date(); }
+    loadLocal(); initFocus(); render();
+  </script>
+
+  <footer class="container" style="font-size:12px; color:#64748b; margin: 16px 0 24px 0;">
+    vytvorila: Eva Mészáros
+  </footer>
+</body>
+</html>
+
