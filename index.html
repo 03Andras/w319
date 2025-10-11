@@ -32,7 +32,8 @@
     .day.disabled .reserve-mini { display:none; }
     .seatlist { margin-top:6px; display:grid; grid-template-columns: 1fr; gap:4px; font-size:12px; line-height:1.2; }
     .seatline { display:flex; align-items:center; gap:6px; min-height:22px; padding:2px 6px; border-radius:8px; }
-    .seatline.free { background: var(--free); }
+    .seatline.free { background: var(--free); cursor: pointer; transition: background 0.15s ease; }
+    .seatline.free:hover { background: #d1fae5; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
@@ -78,12 +79,6 @@
       </div>
       <div class="row">
         <button class="btn" id="open-settings">Nastavenia</button>
-        <span class="status" id="mode-label">Režim dát: Lokálne</span>
-        <button class="btn" id="connect-shared">Pripojiť zdieľaný súbor…</button>
-        <button class="btn" id="disconnect-shared" style="display:none;">Odpojiť</button>
-        <button class="btn" id="export">Export</button>
-        <label class="btn" for="import-file" style="cursor:pointer">Import</label>
-        <input id="import-file" type="file" accept="application/json" style="display:none" />
       </div>
     </div>
   </header>
@@ -243,18 +238,29 @@
       "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
       "Margaréta Cifrová","Dávid Jablonický","Peter Marko","Michal Michalec","Ľubica Hadbavná"
     ];
-    var STORAGE_KEY = "desk-reservation-data-shared-v10";
-    var SETTINGS_KEY = "desk-reservation-settings-shared-v10";
-    var TEAM_KEY = "desk-reservation-team-v10";
 
     function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
-    function loadSettings(){ try{ var raw=localStorage.getItem(SETTINGS_KEY); return raw?JSON.parse(raw):{ ownerName:"", labelStyle:"surname" }; }catch(e){ return { ownerName:"", labelStyle:"surname" }; } }
-    function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
-    function loadTeam(){ try{ var raw=localStorage.getItem(TEAM_KEY); return raw?JSON.parse(raw):sortBySurname(TEAM_DEFAULT); }catch(e){ return sortBySurname(TEAM_DEFAULT); } }
-    function saveTeam(){ localStorage.setItem(TEAM_KEY, JSON.stringify(team)); }
+    
+    // Server API functions
+    function loadSettings(callback){ 
+      fetch('api.php?action=getSettings')
+        .then(function(res){ return res.json(); })
+        .then(function(data){ callback(data); })
+        .catch(function(){ callback({ ownerName:"", labelStyle:"surname", team: sortBySurname(TEAM_DEFAULT) }); });
+    }
+    function saveSettings(callback){ 
+      fetch('api.php?action=saveSettings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(settings)
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(){ if(callback) callback(); })
+      .catch(function(err){ console.error('Error saving settings:', err); });
+    }
 
-    var settings = loadSettings();
-    var team = loadTeam();
+    var settings = { ownerName:"", labelStyle:"surname", team: sortBySurname(TEAM_DEFAULT) };
+    var team = sortBySurname(TEAM_DEFAULT);
 
     function namesOrdered(){
       var list = sortBySurname(team);
@@ -269,10 +275,6 @@
     // State
     var schedule = {}; // date -> { seat: name }
     var ui = { today:new Date(), year:new Date().getFullYear(), month:new Date().getMonth(), selectedName:"", customName:"", focusDate:new Date() };
-    ui.selectedName = namesOrdered()[0];
-
-    // Data mode (shared file)
-    var shared = { enabled:false, handle:null, timer:null, lastText:"" };
 
     // Helpers
     function fmtDate(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
@@ -317,60 +319,25 @@
       return empty;
     }
 
-    function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule)); }
-    function loadLocal(){ try{ var raw=localStorage.getItem(STORAGE_KEY); schedule = raw?JSON.parse(raw):{}; }catch(e){ schedule={}; } }
-
-    async function connectShared(){
-      try{
-        const [handle] = await window.showOpenFilePicker({
-          multiple:false,
-          types:[{description:"Rezervácie JSON", accept: {"application/json": [".json"]}}]
-        });
-        shared.handle = handle;
-        shared.enabled = true;
-        document.getElementById("mode-label").textContent = "Režim dát: Zdieľaný súbor";
-        document.getElementById("connect-shared").style.display="none";
-        document.getElementById("disconnect-shared").style.display="inline-block";
-        await readShared(true);
-        if(shared.timer) clearInterval(shared.timer);
-        shared.timer = setInterval(readShared, 2000);
-      }catch(err){ alert("Výber zdieľaného súboru zrušený alebo nepodporovaný prehliadač."); }
+    function saveData(callback){ 
+      fetch('api.php?action=saveSchedule', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(schedule)
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(){ if(callback) callback(); })
+      .catch(function(err){ console.error('Error saving schedule:', err); });
     }
-    async function disconnectShared(){
-      shared.enabled=false; shared.handle=null; if(shared.timer) clearInterval(shared.timer); shared.timer=null;
-      document.getElementById("mode-label").textContent = "Režim dát: Lokálne";
-      document.getElementById("connect-shared").style.display="inline-block";
-      document.getElementById("disconnect-shared").style.display="none";
-    }
-    async function writeShared(){
-      if(!shared.enabled || !shared.handle) return;
-      const perm = await shared.handle.queryPermission({mode:"readwrite"});
-      if(perm !== "granted"){
-        const req = await shared.handle.requestPermission({mode:"readwrite"});
-        if(req !== "granted"){ alert("Nemáme povolenie zapisovať do zdieľaného súboru."); return; }
-      }
-      const writable = await shared.handle.createWritable();
-      const txt = JSON.stringify(schedule);
-      await writable.write(txt);
-      await writable.close();
-      shared.lastText = txt;
-    }
-    async function readShared(initial){
-      if(!shared.enabled || !shared.handle) return;
-      const perm = await shared.handle.queryPermission({mode:"read"});
-      if(perm !== "granted"){
-        const req = await shared.handle.requestPermission({mode:"read"});
-        if(req !== "granted"){ return; }
-      }
-      const file = await shared.handle.getFile();
-      const txt = await file.text();
-      if(initial || txt !== shared.lastText){
-        try{ const data = JSON.parse(txt||"{}"); schedule = data || {}; shared.lastText = txt; render(); }
-        catch(e){ console.warn("Zdieľaný súbor nie je validný JSON."); }
-      }
+    
+    function loadData(callback){ 
+      fetch('api.php?action=getSchedule')
+        .then(function(res){ return res.json(); })
+        .then(function(data){ schedule = data || {}; if(callback) callback(); })
+        .catch(function(){ schedule = {}; if(callback) callback(); });
     }
 
-    function applyChanges(){ if(shared.enabled){ writeShared(); } else { saveLocal(); } render(); }
+    function applyChanges(){ saveData(); render(); }
 
     function allSameWeekdayDatesInMonth(baseDate){
       var y=baseDate.getFullYear(), m=baseDate.getMonth(), wd=baseDate.getDay();
@@ -453,6 +420,34 @@
             } else {
               who.innerHTML="";
               line.appendChild(no); line.appendChild(who);
+              // Add click handler for free seats
+              (function(ds, seatIdx){
+                line.style.cursor = "pointer";
+                line.onclick = function(e){
+                  e.stopPropagation();
+                  var myName = myCurrentName();
+                  if(!myName){ 
+                    alert("Prosím, najprv vyberte svoje meno.");
+                    return; 
+                  }
+                  var s = getDaySeats(ds);
+                  // Check if seat is still free
+                  if(s[seatIdx]){
+                    alert("Toto miesto je už obsadené.");
+                    return;
+                  }
+                  // Remove user from other seats on this day
+                  for(var k=1; k<=DEFAULT_SEATS; k++){ 
+                    if(k!==seatIdx && s[k]===myName) s[k]=""; 
+                  }
+                  s[seatIdx] = myName;
+                  var next = {}; 
+                  for(var key in schedule) next[key] = schedule[key]; 
+                  next[ds] = s; 
+                  schedule = next;
+                  applyChanges();
+                };
+              })(dStr, idx);
             }
             listDiv.appendChild(line);
           }
@@ -572,7 +567,8 @@
         del.onclick=function(){
           if(!confirm("Odstrániť '"+name+"' zo zoznamu? Existujúce rezervácie ostanú, len sa meno skryje z výberu.")) return;
           team = team.filter(function(n){ return n!==name; });
-          saveTeam(); renderTeamList(); render();
+          settings.team = team;
+          saveSettings(function(){ renderTeamList(); render(); });
         };
         chip.appendChild(txt); chip.appendChild(del); wrap.appendChild(chip);
       });
@@ -584,7 +580,10 @@
       // dedupe (case-insensitive)
       var exists = team.some(function(n){ return n.toLowerCase()===v.toLowerCase(); });
       if(exists){ alert("Toto meno už v tíme je."); return; }
-      team.push(v); saveTeam(); inp.value=""; renderTeamList(); render();
+      team.push(v); 
+      settings.team = team;
+      inp.value=""; 
+      saveSettings(function(){ renderTeamList(); render(); });
     };
 
     // Events
@@ -605,24 +604,31 @@
     document.getElementById("save-settings").onclick=function(){
       settings.ownerName=(document.getElementById("owner-name").value||"").trim();
       settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
-      saveSettings();
-      ui.selectedName=namesOrdered()[0];
-      document.getElementById("settings-overlay").classList.remove("show");
-      render();
+      settings.team = team;
+      saveSettings(function(){
+        ui.selectedName=namesOrdered()[0];
+        document.getElementById("settings-overlay").classList.remove("show");
+        render();
+      });
     };
     document.getElementById("close-settings").onclick=function(){ document.getElementById("settings-overlay").classList.remove("show"); };
 
-    document.getElementById("export").onclick=function(){ var blob=new Blob([JSON.stringify(schedule,null,2)], {type:"application/json"}); var url=URL.createObjectURL(blob); var a=document.createElement("a"); a.href=url; a.download="rezervacie.json"; a.click(); URL.revokeObjectURL(url); };
-
-    document.getElementById("import-file").addEventListener("change", function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(){ try{ schedule=JSON.parse(r.result)||{}; saveLocal(); render(); alert("Dáta importované."); }catch(err){ alert("Súbor nie je platný JSON."); } }; r.readAsText(f); e.target.value=""; });
-
-    document.getElementById("connect-shared").onclick=connectShared;
-    document.getElementById("disconnect-shared").onclick=disconnectShared;
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
     // init
     function initFocus() { ui.focusDate = new Date(); }
-    loadLocal(); initFocus(); render();
+    
+    // Load settings and data from server
+    loadSettings(function(loadedSettings){
+      settings = loadedSettings;
+      team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
+      ui.selectedName = namesOrdered()[0];
+      
+      loadData(function(){
+        initFocus(); 
+        render();
+      });
+    });
   </script>
 
   <footer class="container" style="font-size:12px; color:#64748b; margin: 16px 0 24px 0;">
