@@ -1,0 +1,5 @@
+# Data files (user-generated content)
+data/*.json
+
+# But keep the .htaccess protection file
+!data/.htaccess
