@@ -19,6 +19,9 @@ if (!file_exists($settingsFile)) {
         'ownerName' => '',
         'labelStyle' => 'surname',
         'adminUser' => '',
+        'adminUsers' => [],
+        'adminPassword' => 'Cica123',
+        'connectedUsers' => [],
         'team' => [
             "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
             "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
@@ -134,6 +137,29 @@ switch ($action) {
     case 'getAuditLog':
         $data = file_get_contents($auditLogFile);
         echo $data;
+        break;
+    
+    case 'disconnectUser':
+        $input = file_get_contents('php://input');
+        $decoded = json_decode($input, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $userToDisconnect = $decoded['userToDisconnect'] ?? '';
+            $adminUser = $decoded['adminUser'] ?? 'Unknown';
+            
+            if (empty($userToDisconnect)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'userToDisconnect required']);
+                break;
+            }
+            
+            // Add to disconnected users list (stored as cookie identifier)
+            addAuditLog($adminUser, 'user_disconnect', ['disconnectedUser' => $userToDisconnect]);
+            
+            echo json_encode(['success' => true]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid JSON']);
+        }
         break;
     
     default:

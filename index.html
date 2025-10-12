@@ -78,6 +78,12 @@
     .team-table th { font-weight: 600; background: var(--bg); }
     .team-table tr:hover { background: #f9fafb; }
     .team-table button { padding: 4px 8px; font-size: 12px; }
+    /* Slide-in panel for table layout */
+    .slide-panel { position: fixed; top: 80px; right: -600px; width: 580px; max-width: 90vw; height: calc(100vh - 100px); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 16px 0 0 16px; box-shadow: -5px 0 30px rgba(2,6,23,.15); z-index: 40; transition: right 0.3s ease; overflow-y: auto; }
+    .slide-panel.open { right: 0; }
+    .slide-panel-toggle { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 12px 0 0 12px; padding: 12px 8px; cursor: pointer; box-shadow: -3px 0 10px rgba(2,6,23,.1); z-index: 41; transition: right 0.3s ease; }
+    .slide-panel-toggle.panel-open { right: 580px; }
+    @media (max-width: 768px) { .slide-panel { width: 90vw; right: -90vw; } .slide-panel-toggle.panel-open { right: 90vw; } }
   </style>
 </head>
 <body>
@@ -102,74 +108,80 @@
     <span id="notification-text"></span>
   </div>
 
-  <main class="container">
-    <!-- Graphical layout - collapsible section above main layout -->
-    <div class="plan-wrap" style="width:100%; margin-bottom:12px;">
-      <div class="plan-title" style="justify-content:space-between;">
-        <div>
-          <span>Rozloženie stolov</span>
-          <span class="muted" id="plan-date"></span>
-        </div>
-        <button class="btn" id="toggle-plan">Skryť</button>
+  <!-- Slide-in panel toggle button -->
+  <div class="slide-panel-toggle" id="panel-toggle">
+    <div style="writing-mode: vertical-rl; text-orientation: mixed; font-weight: 600; font-size: 14px;">
+      Rozloženie stolov →
+    </div>
+  </div>
+
+  <!-- Slide-in panel for table layout -->
+  <div class="slide-panel open" id="slide-panel">
+    <div style="padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="font-weight: 700; font-size: 16px;">Rozloženie stolov</div>
+        <button class="btn" id="close-panel">✕ Zavrieť</button>
       </div>
-      <div id="plan-content" style="display:block;">
-        <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
-          <defs>
-            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0ea5e9" flood-opacity=".10"/>
-            </filter>
-          </defs>
-          <!-- LEFT block -->
-          <rect class="desk" x="90" y="40" width="160" height="160" rx="12"/>
-          <rect class="desk-base" x="75" y="184" width="190" height="24" rx="8"/>
-          <!-- RIGHT column far to the right for large gap -->
-          <rect class="desk" x="400" y="28" width="60" height="200" rx="12"/>
+      <div class="muted" id="panel-plan-date" style="margin-bottom: 12px; font-size: 13px;"></div>
+      
+      <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
+        <defs>
+          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0ea5e9" flood-opacity=".10"/>
+          </filter>
+        </defs>
+        <!-- LEFT block -->
+        <rect class="desk" x="90" y="40" width="160" height="160" rx="12"/>
+        <rect class="desk-base" x="75" y="184" width="190" height="24" rx="8"/>
+        <!-- RIGHT column far to the right for large gap -->
+        <rect class="desk" x="400" y="28" width="60" height="200" rx="12"/>
 
-          <!-- Desk numbers -->
-          <text class="desk-num" x="140" y="75">1</text>
-          <text class="desk-num" x="200" y="75">2</text>
-          <text class="desk-num" x="430" y="65">3</text>
-          <text class="desk-num" x="140" y="140">4</text>
-          <text class="desk-num" x="200" y="140">5</text>
-          <text class="desk-num" x="430" y="130">6</text>
-          <text class="desk-num" x="430" y="195">7</text>
+        <!-- Desk numbers -->
+        <text class="desk-num" x="140" y="75">1</text>
+        <text class="desk-num" x="200" y="75">2</text>
+        <text class="desk-num" x="430" y="65">3</text>
+        <text class="desk-num" x="140" y="140">4</text>
+        <text class="desk-num" x="200" y="140">5</text>
+        <text class="desk-num" x="430" y="130">6</text>
+        <text class="desk-num" x="430" y="195">7</text>
 
-          <!-- Chairs – symmetric -->
-          <circle id="s1" class="chair" cx="70" cy="75" r="16"></circle>
-          <text id="t1" class="chair-txt" x="70" y="75"></text>
-          <text id="l1" class="lock-icon" x="85" y="65"></text>
+        <!-- Chairs – symmetric -->
+        <circle id="s1" class="chair" cx="70" cy="75" r="16"></circle>
+        <text id="t1" class="chair-txt" x="70" y="75"></text>
+        <text id="l1" class="lock-icon" x="85" y="65"></text>
 
-          <circle id="s4" class="chair" cx="70" cy="140" r="16"></circle>
-          <text id="t4" class="chair-txt" x="70" y="140"></text>
-          <text id="l4" class="lock-icon" x="85" y="130"></text>
+        <circle id="s4" class="chair" cx="70" cy="140" r="16"></circle>
+        <text id="t4" class="chair-txt" x="70" y="140"></text>
+        <text id="l4" class="lock-icon" x="85" y="130"></text>
 
-          <circle id="s2" class="chair" cx="270" cy="75" r="16"></circle>
-          <text id="t2" class="chair-txt" x="270" y="75"></text>
-          <text id="l2" class="lock-icon" x="285" y="65"></text>
+        <circle id="s2" class="chair" cx="270" cy="75" r="16"></circle>
+        <text id="t2" class="chair-txt" x="270" y="75"></text>
+        <text id="l2" class="lock-icon" x="285" y="65"></text>
 
-          <circle id="s5" class="chair" cx="270" cy="140" r="16"></circle>
-          <text id="t5" class="chair-txt" x="270" y="140"></text>
-          <text id="l5" class="lock-icon" x="285" y="130"></text>
+        <circle id="s5" class="chair" cx="270" cy="140" r="16"></circle>
+        <text id="t5" class="chair-txt" x="270" y="140"></text>
+        <text id="l5" class="lock-icon" x="285" y="130"></text>
 
-          <circle id="s3" class="chair" cx="370" cy="65" r="16"></circle>
-          <text id="t3" class="chair-txt" x="370" y="65"></text>
-          <text id="l3" class="lock-icon" x="385" y="55"></text>
+        <circle id="s3" class="chair" cx="370" cy="65" r="16"></circle>
+        <text id="t3" class="chair-txt" x="370" y="65"></text>
+        <text id="l3" class="lock-icon" x="385" y="55"></text>
 
-          <circle id="s6" class="chair" cx="370" cy="130" r="16"></circle>
-          <text id="t6" class="chair-txt" x="370" y="130"></text>
-          <text id="l6" class="lock-icon" x="385" y="120"></text>
+        <circle id="s6" class="chair" cx="370" cy="130" r="16"></circle>
+        <text id="t6" class="chair-txt" x="370" y="130"></text>
+        <text id="l6" class="lock-icon" x="385" y="120"></text>
 
-          <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
-          <text id="t7" class="chair-txt" x="370" y="195"></text>
-          <text id="l7" class="lock-icon" x="385" y="185"></text>
-        </svg>
+        <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
+        <text id="t7" class="chair-txt" x="370" y="195"></text>
+        <text id="l7" class="lock-icon" x="385" y="185"></text>
+      </svg>
 
-        <div class="row" style="justify-content:flex-end; margin-top:10px;">
-          <button class="btn primary" id="reserve-btn">Rezervovať</button>
-        </div>
+      <div class="row" style="justify-content:flex-end; margin-top:10px;">
+        <button class="btn primary" id="reserve-btn">Rezervovať</button>
       </div>
     </div>
+  </div>
 
+  <main class="container">
     <div class="layout">
       <div>
         <div id="today-card" class="card" style="margin-bottom:6px;"></div>
@@ -243,6 +255,21 @@
         <div style="height:12px"></div>
         <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
         <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        
+        <div id="admin-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fefce8;">
+          <div style="font-weight:600; margin-bottom:8px;">Správa administrátorov</div>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Administrátori môžu upravovať nastavenia a mazať rezervácie.</div>
+          
+          <div id="admin-list" style="margin-bottom:8px;"></div>
+          
+          <div class="row" style="margin-bottom:8px;">
+            <input id="admin-password-input" type="password" placeholder="Admin heslo" style="width:180px" />
+            <button class="btn" id="show-admin-password">Zobraziť heslo</button>
+            <button class="btn" id="change-admin-password">Zmeniť heslo</button>
+          </div>
+          
+          <div class="muted" style="font-size:11px;">Super admin heslo: "Cica432" (umožňuje všetky zmeny)</div>
+        </div>
         
         <div id="team-management" style="margin-top:10px;">
           <table class="team-table">
@@ -346,11 +373,37 @@
         .catch(function(){ callback([]); });
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Cica123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
     var pollingInterval = null;
+    
+    // Cookie management
+    function setCookie(name, value, days) {
+      var expires = "";
+      if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+      }
+      document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+    
+    function getCookie(name) {
+      var nameEQ = name + "=";
+      var ca = document.cookie.split(';');
+      for(var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+    
+    function eraseCookie(name) {
+      document.cookie = name + '=; Max-Age=-99999999;';
+    }
 
     function getYearMonth(year, month) {
       return year + ("0" + (month + 1)).slice(-2);
@@ -375,7 +428,15 @@
     function parseDateStr(s){ var p=s.split("-"); return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)); }
     function firstDayOfMonth(y,m){ return new Date(y,m,1); }
     function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
-    function myCurrentName(){ return (ui.customName.trim()||ui.selectedName).trim(); }
+    function myCurrentName(){ 
+      // Check if name is stored in cookie
+      var storedName = getCookie('userName');
+      if (storedName && storedName.trim()) {
+        return storedName.trim();
+      }
+      // Fall back to custom name or selected name
+      return (ui.customName.trim()||ui.selectedName).trim(); 
+    }
     function labelOf(name, circle){
       if(!name) return "";
       if(circle){ var p=name.split(" "); return ((p[0]?p[0][0]:"")+(p[p.length-1]?p[p.length-1][0]:"")).toUpperCase(); }
@@ -394,7 +455,16 @@
     
     function isAdmin() {
       var currentUser = myCurrentName();
-      return currentUser && settings.adminUser && currentUser.toLowerCase() === settings.adminUser.toLowerCase();
+      // Check both old adminUser and new adminUsers array
+      if (currentUser && settings.adminUser && currentUser.toLowerCase() === settings.adminUser.toLowerCase()) {
+        return true;
+      }
+      if (currentUser && settings.adminUsers && Array.isArray(settings.adminUsers)) {
+        return settings.adminUsers.some(function(admin) {
+          return currentUser.toLowerCase() === admin.toLowerCase();
+        });
+      }
+      return false;
     }
 
     // Holidays/weekends
@@ -518,7 +588,7 @@
         var c=document.getElementById("s"+i), t=document.getElementById("t"+i), li=document.getElementById("l"+i), n=s[i];
         if(n){ c.classList.add("occ"); t.textContent=labelOf(n,true); if(li) li.textContent="🔒"; } else { c.classList.remove("occ"); t.textContent=""; if(li) li.textContent=""; }
       }
-      document.getElementById("plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
+      document.getElementById("panel-plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
     }
 
     function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
@@ -535,6 +605,18 @@
       var list=namesOrdered(); for(var j=0;j<list.length;j++){ var op=document.createElement("option"); op.value=list[j]; op.textContent=list[j]; sel.appendChild(op); }
       if(list.indexOf(ui.selectedName)===-1) ui.selectedName=list[0]; sel.value=ui.selectedName;
       document.getElementById("custom-name").value = ui.customName;
+      
+      // Hide/show name selection based on cookie
+      var storedName = getCookie('userName');
+      var nameRow = document.getElementById("name").parentElement;
+      var customRow = document.getElementById("custom-name").parentElement;
+      if (storedName && storedName.trim()) {
+        nameRow.style.display = "none";
+        customRow.style.display = "none";
+      } else {
+        nameRow.style.display = "flex";
+        customRow.style.display = "flex";
+      }
 
       // Today card
       var todayStr=fmtDate(new Date()); 
@@ -728,8 +810,9 @@
       var dt=parseDateStr(dateStr);
       if(isNonWorking(dt)){ return; }
       
-      // Prevent editing past dates
-      if(isPastDate(dateStr)){
+      // Allow admins to edit past dates
+      var userIsAdmin = isAdmin();
+      if(isPastDate(dateStr) && !userIsAdmin){
         alert("Nie je možné upravovať rezervácie v minulosti.");
         return;
       }
@@ -834,6 +917,35 @@
           }); })(seat);
           right.appendChild(btnC);
         }
+        // Allow admin to delete any reservation
+        if(isAdmin() && !isMine && name){
+          var btnAdminDelete=document.createElement("button"); btnAdminDelete.className="btn"; 
+          btnAdminDelete.textContent="Zrušiť (admin)";
+          btnAdminDelete.style.marginLeft = "4px";
+          btnAdminDelete.style.background = "#fef2f2";
+          btnAdminDelete.style.borderColor = "#fca5a5";
+          btnAdminDelete.style.color = "#991b1b";
+          (function(s, n){ btnAdminDelete.addEventListener("click", function(){ 
+            if(!confirm("Naozaj chcete zrušiť rezerváciu pre '" + n + "'?")){
+              return;
+            }
+            var ss=getDaySeats(dateStr); 
+            ss[s]=""; 
+            var next={}; 
+            for(var key in schedule) next[key]=schedule[key]; 
+            next[dateStr]=ss; 
+            schedule=next; 
+            var dt = parseDateStr(dateStr);
+            applyChangesWithDetails({
+              type: 'admin_deletion',
+              date: dt.toLocaleDateString("sk-SK"),
+              seat: s,
+              deletedUser: n
+            }); 
+            openModal(dateStr); 
+          }); })(seat, name);
+          right.appendChild(btnAdminDelete);
+        }
         row.appendChild(left); row.appendChild(right); seatsDiv.appendChild(row);
       }
       document.getElementById("modal-done").onclick=function(){ document.getElementById("overlay").classList.remove("show"); };
@@ -847,7 +959,7 @@
       var list = sortBySurname(team);
       var currentUser = myCurrentName();
       var userIsAdmin = isAdmin();
-      var hasAdmin = settings.adminUser && settings.adminUser.trim() !== "";
+      var hasAdmin = (settings.adminUser && settings.adminUser.trim() !== "") || (settings.adminUsers && settings.adminUsers.length > 0);
       
       // Show/hide actions column based on admin status
       var actionsHeader = document.getElementById("actions-header");
@@ -868,7 +980,8 @@
         tr.appendChild(tdName);
         
         var tdRole = document.createElement("td");
-        var isThisAdmin = settings.adminUser && name.toLowerCase() === settings.adminUser.toLowerCase();
+        var isThisAdmin = (settings.adminUser && name.toLowerCase() === settings.adminUser.toLowerCase()) ||
+                         (settings.adminUsers && settings.adminUsers.some(function(a){ return a.toLowerCase() === name.toLowerCase(); }));
         if (isThisAdmin) {
           tdRole.innerHTML = "<b>Admin</b>";
         } else {
@@ -878,15 +991,35 @@
         
         var tdActions = document.createElement("td");
         if (!hasAdmin || userIsAdmin) {
-          if (!isThisAdmin && !hasAdmin) {
+          if (!isThisAdmin) {
             var btnAdmin = document.createElement("button");
             btnAdmin.className = "btn";
             btnAdmin.textContent = "Nastaviť ako admin";
             btnAdmin.onclick = function() {
-              settings.adminUser = name;
+              if (!settings.adminUsers) settings.adminUsers = [];
+              if (!settings.adminUsers.some(function(a){ return a.toLowerCase() === name.toLowerCase(); })) {
+                settings.adminUsers.push(name);
+              }
               renderTeamTable();
+              renderAdminList();
             };
             tdActions.appendChild(btnAdmin);
+          } else if (settings.adminUsers && settings.adminUsers.length > 0) {
+            var btnRemoveAdmin = document.createElement("button");
+            btnRemoveAdmin.className = "btn";
+            btnRemoveAdmin.textContent = "Odobrať admin práva";
+            btnRemoveAdmin.style.marginLeft = "4px";
+            btnRemoveAdmin.onclick = function() {
+              if (!confirm("Odobrať admin práva pre '" + name + "'?")) return;
+              settings.adminUsers = settings.adminUsers.filter(function(a){ return a.toLowerCase() !== name.toLowerCase(); });
+              // Also clear old adminUser if it matches
+              if (settings.adminUser && settings.adminUser.toLowerCase() === name.toLowerCase()) {
+                settings.adminUser = "";
+              }
+              renderTeamTable();
+              renderAdminList();
+            };
+            tdActions.appendChild(btnRemoveAdmin);
           }
           
           if (!isThisAdmin) {
@@ -902,11 +1035,66 @@
             };
             tdActions.appendChild(btnRemove);
           }
+          
+          // Add disconnect button
+          var btnDisconnect = document.createElement("button");
+          btnDisconnect.className = "btn";
+          btnDisconnect.textContent = "Odpojiť";
+          btnDisconnect.style.marginLeft = "4px";
+          btnDisconnect.style.background = "#fef2f2";
+          btnDisconnect.style.borderColor = "#fca5a5";
+          btnDisconnect.onclick = function() {
+            if(!confirm("Odpojiť používateľa '" + name + "' z počítača?\nBude požiadaný o opätovné prihlásenie.")) return;
+            
+            // Generate a disconnect token specific to this user
+            var disconnectToken = 'disconnect_' + name.replace(/\s/g, '_') + '_' + Date.now();
+            setCookie('disconnectToken', disconnectToken, 365);
+            
+            fetch('api.php?action=disconnectUser', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName(), disconnectToken: disconnectToken})
+            })
+            .then(function(res){ return res.json(); })
+            .then(function(){ 
+              showNotification("✓ Používateľ " + name + " bude odpojený pri ďalšom prihlásení", false);
+            })
+            .catch(function(err){ console.error('Error disconnecting user:', err); });
+          };
+          tdActions.appendChild(btnDisconnect);
         }
         tr.appendChild(tdActions);
         
         tbody.appendChild(tr);
       });
+    }
+    
+    function renderAdminList() {
+      var adminListDiv = document.getElementById("admin-list");
+      adminListDiv.innerHTML = "";
+      
+      var admins = [];
+      if (settings.adminUser && settings.adminUser.trim()) {
+        admins.push(settings.adminUser);
+      }
+      if (settings.adminUsers && Array.isArray(settings.adminUsers)) {
+        settings.adminUsers.forEach(function(admin) {
+          if (!admins.some(function(a){ return a.toLowerCase() === admin.toLowerCase(); })) {
+            admins.push(admin);
+          }
+        });
+      }
+      
+      if (admins.length === 0) {
+        adminListDiv.innerHTML = '<div class="muted" style="font-size:12px;">Žiadni administrátori</div>';
+        return;
+      }
+      
+      var listText = document.createElement("div");
+      listText.style.fontSize = "13px";
+      listText.style.marginBottom = "8px";
+      listText.innerHTML = "<b>Aktuálni administrátori:</b> " + admins.join(", ");
+      adminListDiv.appendChild(listText);
     }
     
     function renderOwnerDropdown() {
@@ -944,6 +1132,8 @@
               detailsText = " - Rezervácia: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
             } else if (log.details.type === 'deletion') {
               detailsText = " - Zrušenie: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
+            } else if (log.details.type === 'admin_deletion') {
+              detailsText = " - Admin zrušenie: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ", Používateľ: " + (log.details.deletedUser || "") + ")";
             } else if (log.details.changes) {
               detailsText = " - " + log.details.changes;
             }
@@ -966,6 +1156,43 @@
       inp.value=""; 
       renderTeamTable();
       renderOwnerDropdown();
+    };
+    
+    document.getElementById("show-admin-password").onclick=function(){
+      var passwordInput = document.getElementById("admin-password-input");
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        passwordInput.value = settings.adminPassword || "Cica123";
+        document.getElementById("show-admin-password").textContent = "Skryť heslo";
+      } else {
+        passwordInput.type = "password";
+        passwordInput.value = "";
+        document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
+      }
+    };
+    
+    document.getElementById("change-admin-password").onclick=function(){
+      var newPassword = prompt("Zadajte nové admin heslo:");
+      if (!newPassword || newPassword.trim() === "") {
+        return;
+      }
+      
+      settings.adminPassword = newPassword;
+      
+      // Log password change
+      fetch('api.php?action=saveSettings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user: myCurrentName(),
+          action: 'password_change'
+        })
+      });
+      
+      showNotification("✓ Admin heslo bolo zmenené!", false);
+      document.getElementById("admin-password-input").value = "";
+      document.getElementById("admin-password-input").type = "password";
+      document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
     };
 
     // Helper function to check if user can view a specific month
@@ -1026,14 +1253,18 @@
     document.getElementById("clear-custom").onclick=function(){ ui.customName=""; document.getElementById("custom-name").value=""; };
     document.getElementById("open-settings").onclick=function(){
       // Check if there's an admin and if current user is not admin
-      var hasAdmin = settings.adminUser && settings.adminUser.trim() !== "";
+      var hasAdmin = (settings.adminUser && settings.adminUser.trim() !== "") || (settings.adminUsers && settings.adminUsers.length > 0);
       var currentUser = myCurrentName();
       var userIsAdmin = isAdmin();
       
       if(hasAdmin && !userIsAdmin){
         // Prompt for password
         var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
-        if(password !== "Cica123"){
+        if(password === "Cica432"){
+          // Super admin password - allow everything
+        } else if(password === (settings.adminPassword || "Cica123")){
+          // Regular admin password - OK
+        } else {
           alert("Nesprávne heslo!");
           return;
         }
@@ -1044,6 +1275,15 @@
       document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
       document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
       renderTeamTable();
+      renderAdminList();
+      
+      // Show/hide admin management based on permissions
+      var adminMgmt = document.getElementById("admin-management");
+      if (userIsAdmin || !hasAdmin) {
+        adminMgmt.style.display = "block";
+      } else {
+        adminMgmt.style.display = "none";
+      }
     };
     document.getElementById("open-logs").onclick=function(){
       document.getElementById("logs-overlay").classList.add("show");
@@ -1068,18 +1308,28 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Plan toggle
-    document.getElementById("toggle-plan").onclick=function(){
-      var content = document.getElementById("plan-content");
-      var btn = document.getElementById("toggle-plan");
+    // Panel toggle for slide-in layout
+    document.getElementById("panel-toggle").onclick=function(){
+      var panel = document.getElementById("slide-panel");
+      var toggle = document.getElementById("panel-toggle");
       
-      if(content.style.display === "none") {
-        content.style.display = "block";
-        btn.textContent = "Skryť";
+      if(panel.classList.contains("open")) {
+        panel.classList.remove("open");
+        toggle.classList.remove("panel-open");
+        toggle.querySelector("div").textContent = "Rozloženie stolov →";
       } else {
-        content.style.display = "none";
-        btn.textContent = "Zobraziť";
+        panel.classList.add("open");
+        toggle.classList.add("panel-open");
+        toggle.querySelector("div").textContent = "← Zavrieť";
       }
+    };
+    
+    document.getElementById("close-panel").onclick=function(){
+      var panel = document.getElementById("slide-panel");
+      var toggle = document.getElementById("panel-toggle");
+      panel.classList.remove("open");
+      toggle.classList.remove("panel-open");
+      toggle.querySelector("div").textContent = "Rozloženie stolov →";
     };
 
     // Real-time polling for concurrent changes
@@ -1104,10 +1354,32 @@
     // init
     function initFocus() { ui.focusDate = new Date(); }
     
+    // Check if user name is in cookie, if not, ask for it
+    function initUserName() {
+      var storedName = getCookie('userName');
+      if (!storedName || storedName.trim() === "") {
+        // Ask for name
+        var userName = prompt("Zadajte svoje meno (bude uložené na tomto počítači):");
+        if (userName && userName.trim()) {
+          setCookie('userName', userName.trim(), 365); // Store for 1 year
+          ui.customName = userName.trim();
+        }
+      }
+    }
+    
     // Load settings and data from server
     loadSettings(function(loadedSettings){
       settings = loadedSettings;
       team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
+      
+      // Migrate old adminUser to adminUsers array if needed
+      if (settings.adminUser && settings.adminUser.trim() && (!settings.adminUsers || settings.adminUsers.length === 0)) {
+        settings.adminUsers = [settings.adminUser];
+      }
+      
+      // Initialize user name from cookie
+      initUserName();
+      
       ui.selectedName = namesOrdered()[0];
       
       loadData(ui.year, ui.month, function(){
