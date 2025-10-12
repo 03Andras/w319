@@ -67,3 +67,7 @@ Uloží nastavenia. Telo požiadavky musí byť JSON objekt.
 
 Pripravila: Eva Mészáros
 Určené pre: IT oddelenie Wüstenrot na posúdenie a implementáciu
+
+## Požiadavka na nasadenie
+
+Prosím IT oddelenie o zváženie nasadenia tejto aplikácie na lokálny webový server s prístupom cez VPN. Aplikácia nevyžaduje databázu – stačí nahrať súbory na server a sprístupniť ich interno cez VPN. Toto by značne uľahčilo prácu, pretože kancelária 3.19 by mohla bez problémov pristupovať k systému rezervácií.
