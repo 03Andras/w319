@@ -79,9 +79,36 @@
     .team-table th { font-weight: 600; background: var(--bg); }
     .team-table tr:hover { background: #f9fafb; }
     .team-table button { padding: 4px 8px; font-size: 12px; }
+    /* PIN protection overlay */
+    .pin-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .pin-overlay.hidden { display: none; }
+    .pin-box { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(2,6,23,.15); text-align: center; max-width: 400px; width: 90%; }
+    .pin-box h2 { margin: 0 0 10px 0; font-size: 22px; color: var(--text); }
+    .pin-box p { margin: 0 0 24px 0; font-size: 14px; color: var(--muted); }
+    .pin-input { width: 100%; padding: 14px; font-size: 18px; text-align: center; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 16px; letter-spacing: 4px; }
+    .pin-input:focus { outline: none; border-color: var(--accent); }
+    .pin-submit { width: 100%; padding: 14px; font-size: 16px; background: var(--accent); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; }
+    .pin-submit:hover { background: #1d4ed8; }
+    .pin-error { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+    .pin-error.show { display: block; }
+    .main-content { display: none; }
+    .main-content.visible { display: block; }
   </style>
 </head>
 <body>
+  <!-- PIN Protection Overlay -->
+  <div id="pin-overlay" class="pin-overlay">
+    <div class="pin-box">
+      <h2>Kancelária 3.19</h2>
+      <p>Prihlaste sa do rezervacnej systemu pre Kancellariu 3.19</p>
+      <input type="password" id="pin-input" class="pin-input" placeholder="Zadajte PIN kód" maxlength="9" />
+      <button id="pin-submit" class="pin-submit">Prihlásiť sa</button>
+      <div id="pin-error" class="pin-error">Nesprávny PIN kód. Skúste znova.</div>
+    </div>
+  </div>
+
+  <!-- Main Application Content -->
+  <div id="main-content" class="main-content">
   <header class="sticky">
     <div class="container row" style="justify-content: space-between;">
       <h1>Kancelária 3.19</h1>
@@ -1858,6 +1885,53 @@
         startPolling(); // Start real-time polling
       });
     });
+  </script>
+
+  </div>
+  <!-- End of Main Application Content -->
+
+  <!-- PIN Code Validation Script -->
+  <script>
+    (function() {
+      var correctPin = "147258369";
+      var pinOverlay = document.getElementById("pin-overlay");
+      var pinInput = document.getElementById("pin-input");
+      var pinSubmit = document.getElementById("pin-submit");
+      var pinError = document.getElementById("pin-error");
+      var mainContent = document.getElementById("main-content");
+      
+      // Check if user has already entered correct PIN (session storage)
+      if (sessionStorage.getItem('pinValidated') === 'true') {
+        pinOverlay.classList.add('hidden');
+        mainContent.classList.add('visible');
+      }
+      
+      function validatePin() {
+        var enteredPin = pinInput.value;
+        if (enteredPin === correctPin) {
+          // Correct PIN
+          sessionStorage.setItem('pinValidated', 'true');
+          pinOverlay.classList.add('hidden');
+          mainContent.classList.add('visible');
+          pinError.classList.remove('show');
+        } else {
+          // Incorrect PIN
+          pinError.classList.add('show');
+          pinInput.value = '';
+          pinInput.focus();
+        }
+      }
+      
+      pinSubmit.addEventListener('click', validatePin);
+      pinInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          validatePin();
+        }
+      });
+      
+      // Focus on input when page loads
+      pinInput.focus();
+    })();
   </script>
 
   <footer class="container" style="font-size:12px; color:#64748b; margin: 16px 0 24px 0;">
