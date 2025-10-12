@@ -65,6 +65,19 @@
     /* Team list */
     .team-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:4px 8px; margin:4px; background:#fff; }
     .team-chip button { border:0; background:transparent; cursor:pointer; font-weight:700; color:#ef4444; }
+    /* Notification popup */
+    .notification { position: fixed; top: 80px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3); z-index: 100; display: none; align-items: center; gap: 10px; animation: slideIn 0.3s ease-out; }
+    .notification.show { display: flex; }
+    .notification.error { background: #ef4444; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3); }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
+    .notification.hiding { animation: slideOut 0.3s ease-out; }
+    /* Team table */
+    .team-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .team-table th, .team-table td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    .team-table th { font-weight: 600; background: var(--bg); }
+    .team-table tr:hover { background: #f9fafb; }
+    .team-table button { padding: 4px 8px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -82,6 +95,11 @@
       </div>
     </div>
   </header>
+
+  <!-- Notification popup -->
+  <div id="notification" class="notification">
+    <span id="notification-text"></span>
+  </div>
 
   <main class="container">
     <div class="layout">
@@ -208,7 +226,9 @@
       </header>
       <div class="content" style="padding:12px;">
         <div style="font-weight:600; margin-bottom:6px">Vlastník tohto počítača</div>
-        <input id="owner-name" placeholder="Zadaj meno (bude vždy prvé v poradí)" style="width:260px" />
+        <select id="owner-name" style="width:260px">
+          <option value="">-- Vyberte vlastníka --</option>
+        </select>
 
         <div style="height:12px"></div>
         <div style="font-weight:600; margin-bottom:6px">Štýl mien v kalendári</div>
@@ -217,12 +237,33 @@
 
         <div style="height:12px"></div>
         <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
-        <div class="muted" style="font-size:12px; margin-bottom:6px;">Zoznam sa zobrazuje v rozbaľovačke „Moje meno“. Zoradené podľa priezviska, vlastník PC je prvý.</div>
-        <div class="row">
-          <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
-          <button class="btn" id="add-member">Pridať</button>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        
+        <div id="team-management" style="margin-top:10px;">
+          <table class="team-table">
+            <thead>
+              <tr>
+                <th>Meno</th>
+                <th>Rola</th>
+                <th id="actions-header">Akcie</th>
+              </tr>
+            </thead>
+            <tbody id="team-table-body"></tbody>
+          </table>
+          
+          <div class="row" style="margin-top:12px;" id="add-member-section">
+            <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
+            <button class="btn" id="add-member">Pridať</button>
+          </div>
         </div>
-        <div id="team-list" style="margin-top:8px;"></div>
+
+        <div style="height:12px"></div>
+        <div id="audit-log-section" style="display:none;">
+          <div style="font-weight:600; margin-bottom:6px">Záznam zmien (Audit Log)</div>
+          <div id="audit-log" style="max-height:300px; overflow-y:auto; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:8px;">
+            <div class="muted">Načítavam...</div>
+          </div>
+        </div>
 
         <div class="row" style="justify-content:flex-end; margin-top:12px">
           <button class="btn" id="save-settings">Uložiť</button>
@@ -241,26 +282,60 @@
 
     function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
     
+    // Notification helper
+    function showNotification(message, isError) {
+      var notif = document.getElementById("notification");
+      var text = document.getElementById("notification-text");
+      text.textContent = message;
+      notif.classList.remove("error");
+      if (isError) notif.classList.add("error");
+      notif.classList.remove("hiding");
+      notif.classList.add("show");
+      setTimeout(function() {
+        notif.classList.add("hiding");
+        setTimeout(function() {
+          notif.classList.remove("show", "hiding");
+        }, 300);
+      }, 3000);
+    }
+    
     // Server API functions
     function loadSettings(callback){ 
       fetch('api.php?action=getSettings')
         .then(function(res){ return res.json(); })
         .then(function(data){ callback(data); })
-        .catch(function(){ callback({ ownerName:"", labelStyle:"surname", team: sortBySurname(TEAM_DEFAULT) }); });
+        .catch(function(){ callback({ ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) }); });
     }
+    
     function saveSettings(callback){ 
+      var dataToSave = Object.assign({}, settings);
+      dataToSave.user = myCurrentName();
       fetch('api.php?action=saveSettings', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(settings)
+        body: JSON.stringify(dataToSave)
       })
       .then(function(res){ return res.json(); })
       .then(function(){ if(callback) callback(); })
       .catch(function(err){ console.error('Error saving settings:', err); });
     }
+    
+    function loadAuditLog(callback) {
+      fetch('api.php?action=getAuditLog')
+        .then(function(res){ return res.json(); })
+        .then(function(data){ callback(data); })
+        .catch(function(){ callback([]); });
+    }
 
-    var settings = { ownerName:"", labelStyle:"surname", team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) };
     var team = sortBySurname(TEAM_DEFAULT);
+    var scheduleCache = {}; // cache per month: yearMonth -> data
+    var currentYearMonth = "";
+    var pollingInterval = null;
+
+    function getYearMonth(year, month) {
+      return year + ("0" + (month + 1)).slice(-2);
+    }
 
     function namesOrdered(){
       var list = sortBySurname(team);
@@ -287,6 +362,11 @@
       if(circle){ var p=name.split(" "); return ((p[0]?p[0][0]:"")+(p[p.length-1]?p[p.length-1][0]:"")).toUpperCase(); }
       if((settings.labelStyle||"surname")==="initials"){ var x=name.split(" "); return ((x[0]?x[0][0]:"")+(x[x.length-1]?x[x.length-1][0]:"")).toUpperCase(); }
       return name.split(" ").pop();
+    }
+    
+    function isAdmin() {
+      var currentUser = myCurrentName();
+      return currentUser && settings.adminUser && currentUser.toLowerCase() === settings.adminUser.toLowerCase();
     }
 
     // Holidays/weekends
@@ -320,21 +400,49 @@
     }
 
     function saveData(callback){ 
+      var yearMonth = getYearMonth(ui.year, ui.month);
+      var dataToSave = {
+        yearMonth: yearMonth,
+        data: schedule,
+        user: myCurrentName()
+      };
       fetch('api.php?action=saveSchedule', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(schedule)
+        body: JSON.stringify(dataToSave)
       })
       .then(function(res){ return res.json(); })
-      .then(function(){ if(callback) callback(); })
-      .catch(function(err){ console.error('Error saving schedule:', err); });
+      .then(function(){ 
+        scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
+        showNotification("✓ Úspešne rezervované!", false);
+        if(callback) callback(); 
+      })
+      .catch(function(err){ 
+        console.error('Error saving schedule:', err); 
+        showNotification("✗ Chyba pri ukladaní!", true);
+      });
     }
     
-    function loadData(callback){ 
-      fetch('api.php?action=getSchedule')
+    function loadData(year, month, callback){ 
+      var yearMonth = getYearMonth(year, month);
+      if (scheduleCache[yearMonth]) {
+        schedule = JSON.parse(JSON.stringify(scheduleCache[yearMonth]));
+        if(callback) callback();
+        return;
+      }
+      
+      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
         .then(function(res){ return res.json(); })
-        .then(function(data){ schedule = data || {}; if(callback) callback(); })
-        .catch(function(){ schedule = {}; if(callback) callback(); });
+        .then(function(data){ 
+          schedule = data || {}; 
+          scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
+          if(callback) callback(); 
+        })
+        .catch(function(){ 
+          schedule = {}; 
+          scheduleCache[yearMonth] = {};
+          if(callback) callback(); 
+        });
     }
 
     function applyChanges(){ saveData(); render(); }
@@ -555,22 +663,109 @@
       document.getElementById("close-modal").onclick=function(){ document.getElementById("overlay").classList.remove("show"); };
     }
 
-    // Settings: team management
-    function renderTeamList(){
-      var wrap = document.getElementById("team-list"); wrap.innerHTML="";
+    // Settings: team management with admin support
+    function renderTeamTable(){
+      var tbody = document.getElementById("team-table-body");
+      tbody.innerHTML = "";
       var list = sortBySurname(team);
+      var currentUser = myCurrentName();
+      var userIsAdmin = isAdmin();
+      var hasAdmin = settings.adminUser && settings.adminUser.trim() !== "";
+      
+      // Show/hide actions column based on admin status
+      var actionsHeader = document.getElementById("actions-header");
+      var addMemberSection = document.getElementById("add-member-section");
+      if (hasAdmin && !userIsAdmin) {
+        actionsHeader.style.display = "none";
+        addMemberSection.style.display = "none";
+      } else {
+        actionsHeader.style.display = "";
+        addMemberSection.style.display = "";
+      }
+      
       list.forEach(function(name){
-        var chip=document.createElement("span"); chip.className="team-chip";
-        var txt=document.createElement("span"); txt.textContent=name;
-        var del=document.createElement("button"); del.textContent="×";
-        del.title="Odstrániť člena";
-        del.onclick=function(){
-          if(!confirm("Odstrániť '"+name+"' zo zoznamu? Existujúce rezervácie ostanú, len sa meno skryje z výberu.")) return;
-          team = team.filter(function(n){ return n!==name; });
-          settings.team = team;
-          saveSettings(function(){ renderTeamList(); render(); });
-        };
-        chip.appendChild(txt); chip.appendChild(del); wrap.appendChild(chip);
+        var tr = document.createElement("tr");
+        
+        var tdName = document.createElement("td");
+        tdName.textContent = name;
+        tr.appendChild(tdName);
+        
+        var tdRole = document.createElement("td");
+        var isThisAdmin = settings.adminUser && name.toLowerCase() === settings.adminUser.toLowerCase();
+        if (isThisAdmin) {
+          tdRole.innerHTML = "<b>Admin</b>";
+        } else {
+          tdRole.textContent = "Člen";
+        }
+        tr.appendChild(tdRole);
+        
+        var tdActions = document.createElement("td");
+        if (!hasAdmin || userIsAdmin) {
+          if (!isThisAdmin && !hasAdmin) {
+            var btnAdmin = document.createElement("button");
+            btnAdmin.className = "btn";
+            btnAdmin.textContent = "Nastaviť ako admin";
+            btnAdmin.onclick = function() {
+              settings.adminUser = name;
+              renderTeamTable();
+            };
+            tdActions.appendChild(btnAdmin);
+          }
+          
+          if (!isThisAdmin) {
+            var btnRemove = document.createElement("button");
+            btnRemove.className = "btn";
+            btnRemove.textContent = "Odstrániť";
+            btnRemove.style.marginLeft = "4px";
+            btnRemove.onclick = function() {
+              if(!confirm("Odstrániť '" + name + "' zo zoznamu?")) return;
+              team = team.filter(function(n){ return n !== name; });
+              settings.team = team;
+              renderTeamTable();
+            };
+            tdActions.appendChild(btnRemove);
+          }
+        }
+        tr.appendChild(tdActions);
+        
+        tbody.appendChild(tr);
+      });
+    }
+    
+    function renderOwnerDropdown() {
+      var ownerSelect = document.getElementById("owner-name");
+      ownerSelect.innerHTML = '<option value="">-- Vyberte vlastníka --</option>';
+      var list = sortBySurname(team);
+      list.forEach(function(name) {
+        var option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (settings.ownerName === name) {
+          option.selected = true;
+        }
+        ownerSelect.appendChild(option);
+      });
+    }
+    
+    function renderAuditLog() {
+      if (!isAdmin()) return;
+      
+      document.getElementById("audit-log-section").style.display = "block";
+      loadAuditLog(function(logs) {
+        var logDiv = document.getElementById("audit-log");
+        if (logs.length === 0) {
+          logDiv.innerHTML = '<div class="muted">Žiadne záznamy</div>';
+          return;
+        }
+        
+        logDiv.innerHTML = "";
+        logs.reverse().slice(0, 50).forEach(function(log) {
+          var entry = document.createElement("div");
+          entry.style.padding = "4px 0";
+          entry.style.borderBottom = "1px solid var(--border)";
+          entry.innerHTML = "<b>" + log.timestamp + "</b> - " + log.user + ": " + log.action;
+          logDiv.appendChild(entry);
+        });
       });
     }
 
@@ -583,37 +778,77 @@
       team.push(v); 
       settings.team = team;
       inp.value=""; 
-      saveSettings(function(){ renderTeamList(); render(); });
+      renderTeamTable();
+      renderOwnerDropdown();
     };
 
     // Events
-    document.getElementById("nav-prev").onclick=function(){ var m=ui.month-1; if(m<0){ ui.month=11; ui.year--; } else ui.month=m; render(); };
-    document.getElementById("nav-next").onclick=function(){ var m=ui.month+1; if(m>11){ ui.month=0; ui.year++; } else ui.month=m; render(); };
-    document.getElementById("month").onchange=function(e){ ui.month=parseInt(e.target.value,10); render(); };
-    document.getElementById("year").oninput=function(e){ var v=parseInt(e.target.value,10); if(!isNaN(v)) ui.year=v; };
+    document.getElementById("nav-prev").onclick=function(){ 
+      var m=ui.month-1; 
+      if(m<0){ ui.month=11; ui.year--; } else ui.month=m; 
+      loadData(ui.year, ui.month, function() { render(); });
+    };
+    document.getElementById("nav-next").onclick=function(){ 
+      var m=ui.month+1; 
+      if(m>11){ ui.month=0; ui.year++; } else ui.month=m; 
+      loadData(ui.year, ui.month, function() { render(); });
+    };
+    document.getElementById("month").onchange=function(e){ 
+      ui.month=parseInt(e.target.value,10); 
+      loadData(ui.year, ui.month, function() { render(); });
+    };
+    document.getElementById("year").oninput=function(e){ 
+      var v=parseInt(e.target.value,10); 
+      if(!isNaN(v)) {
+        ui.year=v; 
+        loadData(ui.year, ui.month, function() { render(); });
+      }
+    };
     document.getElementById("name").onchange=function(e){ ui.selectedName=e.target.value; };
     document.getElementById("custom-name").oninput=function(e){ ui.customName=e.target.value; };
     document.getElementById("clear-custom").onclick=function(){ ui.customName=""; document.getElementById("custom-name").value=""; };
     document.getElementById("open-settings").onclick=function(){
       document.getElementById("settings-overlay").classList.add("show");
-      document.getElementById("owner-name").value=settings.ownerName||"";
+      renderOwnerDropdown();
       document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
       document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
-      renderTeamList();
+      renderTeamTable();
+      renderAuditLog();
     };
     document.getElementById("save-settings").onclick=function(){
-      settings.ownerName=(document.getElementById("owner-name").value||"").trim();
+      var ownerSelect = document.getElementById("owner-name");
+      settings.ownerName = ownerSelect.value;
       settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
       settings.team = team;
       saveSettings(function(){
         ui.selectedName=namesOrdered()[0];
         document.getElementById("settings-overlay").classList.remove("show");
+        showNotification("✓ Nastavenia uložené!", false);
         render();
       });
     };
     document.getElementById("close-settings").onclick=function(){ document.getElementById("settings-overlay").classList.remove("show"); };
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
+
+    // Real-time polling for concurrent changes
+    function startPolling() {
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(function() {
+        var yearMonth = getYearMonth(ui.year, ui.month);
+        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+          .then(function(res){ return res.json(); })
+          .then(function(data){ 
+            var changed = JSON.stringify(data) !== JSON.stringify(schedule);
+            if (changed) {
+              schedule = data || {};
+              scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
+              render();
+            }
+          })
+          .catch(function(err){ console.error('Polling error:', err); });
+      }, 4000); // Poll every 4 seconds
+    }
 
     // init
     function initFocus() { ui.focusDate = new Date(); }
@@ -624,9 +859,10 @@
       team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
       ui.selectedName = namesOrdered()[0];
       
-      loadData(function(){
+      loadData(ui.year, ui.month, function(){
         initFocus(); 
         render();
+        startPolling(); // Start real-time polling
       });
     });
   </script>
