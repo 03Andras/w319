@@ -399,6 +399,7 @@
 
   <script>
     var DEFAULT_SEATS = 7;
+    var DEBUG_MODE = false;
     var TEAM_DEFAULT = [
       "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
       "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
@@ -406,6 +407,11 @@
     ];
 
     function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
+    
+    function logError(msg, err) {
+      if (DEBUG_MODE && err) console.error(msg, err);
+      else if (DEBUG_MODE) console.error(msg);
+    }
     
     // Notification helper
     function showNotification(message, isError, details) {
@@ -449,7 +455,7 @@
       })
       .then(function(res){ return res.json(); })
       .then(function(){ if(callback) callback(); })
-      .catch(function(err){ console.error('Error saving settings:', err); });
+      .catch(function(err){ logError('Error saving settings:', err); });
     }
     
     function loadAuditLog(callback) {
@@ -459,7 +465,7 @@
         .catch(function(){ callback([]); });
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"admin123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
@@ -515,7 +521,7 @@
         body: JSON.stringify({userName: userName, sessionId: sessionId})
       })
       .then(function(res){ return res.json(); })
-      .catch(function(err){ console.error('Error registering session:', err); });
+      .catch(function(err){ logError('Error registering session:', err); });
     }
 
     // Check if session is still active
@@ -531,7 +537,7 @@
             location.reload();
           }
         })
-        .catch(function(err){ console.error('Error checking session:', err); });
+        .catch(function(err){ logError('Error checking session:', err); });
     }
 
     function getYearMonth(year, month) {
@@ -642,14 +648,12 @@
       .then(function(res){ return res.json(); })
       .then(function(){ 
         scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
-        // Self-check: verify data was actually saved correctly
         selfCheckData(yearMonth, function(verified) {
           if (!verified) {
-            console.error('Self-check failed: Data verification did not match');
+            logError('Self-check failed: Data verification did not match');
           }
         });
         
-        // Show notification with details
         if (details) {
           var message = details.type === 'deletion' ? '✓ Úspešne zrušené!' : '✓ Úspešne rezervované!';
           showNotification(message, false, details);
@@ -659,7 +663,7 @@
         if(callback) callback(); 
       })
       .catch(function(err){ 
-        console.error('Error saving schedule:', err); 
+        logError('Error saving schedule:', err); 
         showNotification("✗ Chyba pri ukladaní!", true);
       });
     }
@@ -673,7 +677,7 @@
           if(callback) callback(isMatch);
         })
         .catch(function(err){ 
-          console.error('Self-check error:', err);
+          logError('Self-check error:', err);
           if(callback) callback(false);
         });
     }
@@ -1292,9 +1296,9 @@
             .then(function(data){ 
               var count = data.sessionsDisconnected || 0;
               showNotification("✓ Odpojených " + count + " sedení používateľa " + name, false);
-              renderTeamTable(); // Refresh to show updated sessions
+              renderTeamTable();
             })
-            .catch(function(err){ console.error('Error disconnecting user:', err); });
+            .catch(function(err){ logError('Error disconnecting user:', err); });
           };
           tdActions.appendChild(btnDisconnect);
         }
@@ -1447,7 +1451,7 @@
           });
         })
         .catch(function(err) {
-          console.error('Error loading sessions:', err);
+          logError('Error loading sessions:', err);
         });
     }
 
@@ -1468,7 +1472,7 @@
       var passwordInput = document.getElementById("admin-password-input");
       if (passwordInput.type === "password") {
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "Jablko123";
+        passwordInput.value = settings.adminPassword || "admin123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         passwordInput.type = "password";
@@ -1568,15 +1572,9 @@
       var currentUser = myCurrentName();
       var userIsAdmin = isAdmin();
       
-      // Always require password if there's an admin configured
       if(hasAdmin){
-        // Prompt for password
         var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
-        if(password === "Cica432"){
-          // Super admin password - allow everything
-        } else if(password === (settings.adminPassword || "Jablko123")){
-          // Regular admin password - OK
-        } else {
+        if(password !== (settings.adminPassword || "admin123")){
           alert("Nesprávne heslo!");
           return;
         }
@@ -1602,9 +1600,8 @@
         teamSectionHeader.style.display = "block";
         renderDataFilesList();
         
-        // Show admin password by default for admins
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "Jablko123";
+        passwordInput.value = settings.adminPassword || "admin123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         adminMgmt.style.display = "none";
@@ -1659,7 +1656,7 @@
         })
         .catch(function(err){ 
           showNotification("✗ Chyba pri exporte nastavení", true);
-          console.error(err);
+          logError(err);
         });
     };
     
@@ -1681,7 +1678,7 @@
         })
         .catch(function(err){ 
           showNotification("✗ Chyba pri exporte rozpisu", true);
-          console.error(err);
+          logError(err);
         });
     };
     
@@ -1747,7 +1744,7 @@
           })
           .catch(function(err){
             showNotification("✗ Chyba pri importe nastavení", true);
-            console.error(err);
+            logError(err);
           });
         } catch (err) {
           alert("Chyba pri čítaní súboru: " + err.message);
@@ -1795,11 +1792,10 @@
             }
             updateLastUpdateTime();
           })
-          .catch(function(err){ console.error('Polling error:', err); });
+          .catch(function(err){ logError('Polling error:', err); });
         
-        // Check session status
         checkSession();
-      }, 4000); // Poll every 4 seconds
+      }, 4000);
     }
     
     // Update last update timestamp in header
@@ -1955,14 +1951,12 @@
   <!-- PIN Code Validation Script -->
   <script>
     (function() {
-      var correctPin = "147258369";
       var pinOverlay = document.getElementById("pin-overlay");
       var pinInput = document.getElementById("pin-input");
       var pinSubmit = document.getElementById("pin-submit");
       var pinError = document.getElementById("pin-error");
       var mainContent = document.getElementById("main-content");
       
-      // Check if user has already entered correct PIN (session storage)
       if (sessionStorage.getItem('pinValidated') === 'true') {
         pinOverlay.classList.add('hidden');
         mainContent.classList.add('visible');
@@ -1970,18 +1964,30 @@
       
       function validatePin() {
         var enteredPin = pinInput.value;
-        if (enteredPin === correctPin) {
-          // Correct PIN
-          sessionStorage.setItem('pinValidated', 'true');
-          pinOverlay.classList.add('hidden');
-          mainContent.classList.add('visible');
-          pinError.classList.remove('show');
-        } else {
-          // Incorrect PIN
+        
+        fetch('api.php?action=validatePin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({pin: enteredPin})
+        })
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data.valid) {
+            sessionStorage.setItem('pinValidated', 'true');
+            pinOverlay.classList.add('hidden');
+            mainContent.classList.add('visible');
+            pinError.classList.remove('show');
+          } else {
+            pinError.classList.add('show');
+            pinInput.value = '';
+            pinInput.focus();
+          }
+        })
+        .catch(function(){
           pinError.classList.add('show');
           pinInput.value = '';
           pinInput.focus();
-        }
+        });
       }
       
       pinSubmit.addEventListener('click', validatePin);
@@ -1991,7 +1997,6 @@
         }
       });
       
-      // Focus on input when page loads
       pinInput.focus();
     })();
   </script>

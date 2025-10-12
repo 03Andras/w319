@@ -20,8 +20,9 @@ if (!file_exists($settingsFile)) {
         'ownerName' => '',
         'labelStyle' => 'surname',
         'adminUser' => '',
-        'adminUsers' => ["Eva Mészáros"],
-        'adminPassword' => 'Jablko123',
+        'adminUsers' => [],
+        'adminPassword' => 'admin123',
+        'accessPin' => '147258369',
         'connectedUsers' => [],
         'team' => [
             "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
@@ -304,6 +305,25 @@ switch ($action) {
         });
         
         echo json_encode(array_values($filteredSessions));
+        break;
+    
+    case 'validatePin':
+        $input = file_get_contents('php://input');
+        $decoded = json_decode($input, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $enteredPin = $decoded['pin'] ?? '';
+            $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
+            $correctPin = $settings['accessPin'] ?? '147258369';
+            
+            if ($enteredPin === $correctPin) {
+                echo json_encode(['valid' => true]);
+            } else {
+                echo json_encode(['valid' => false]);
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid JSON']);
+        }
         break;
     
     default:
