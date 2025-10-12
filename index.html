@@ -237,12 +237,33 @@
 
         <div style="height:12px"></div>
         <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
-        <div class="muted" style="font-size:12px; margin-bottom:6px;">Zoznam sa zobrazuje v rozbaľovačke „Moje meno“. Zoradené podľa priezviska, vlastník PC je prvý.</div>
-        <div class="row">
-          <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
-          <button class="btn" id="add-member">Pridať</button>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        
+        <div id="team-management" style="margin-top:10px;">
+          <table class="team-table">
+            <thead>
+              <tr>
+                <th>Meno</th>
+                <th>Rola</th>
+                <th id="actions-header">Akcie</th>
+              </tr>
+            </thead>
+            <tbody id="team-table-body"></tbody>
+          </table>
+          
+          <div class="row" style="margin-top:12px;" id="add-member-section">
+            <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
+            <button class="btn" id="add-member">Pridať</button>
+          </div>
         </div>
-        <div id="team-list" style="margin-top:8px;"></div>
+
+        <div style="height:12px"></div>
+        <div id="audit-log-section" style="display:none;">
+          <div style="font-weight:600; margin-bottom:6px">Záznam zmien (Audit Log)</div>
+          <div id="audit-log" style="max-height:300px; overflow-y:auto; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:8px;">
+            <div class="muted">Načítavam...</div>
+          </div>
+        </div>
 
         <div class="row" style="justify-content:flex-end; margin-top:12px">
           <button class="btn" id="save-settings">Uložiť</button>
