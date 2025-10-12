@@ -20,7 +20,7 @@ if (!file_exists($settingsFile)) {
         'ownerName' => '',
         'labelStyle' => 'surname',
         'adminUser' => '',
-        'adminUsers' => [],
+        'adminUsers' => ["Eva Mészáros"],
         'adminPassword' => 'Jablko123',
         'connectedUsers' => [],
         'team' => [
