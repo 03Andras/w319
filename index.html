@@ -38,8 +38,9 @@
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
     .lock { font-size: 12px; margin-left: 4px; }
-    .layout { display:grid; grid-template-columns: 1fr 400px; gap:12px; align-items:start; }
-    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+    .layout { display:grid; grid-template-columns: minmax(0, 1fr) 420px; gap:12px; align-items:start; }
+    .sidebar { position: sticky; top:72px; display: grid; gap:12px; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
     .plan-wrap { padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
     .status { font-size:12px; }
@@ -78,33 +79,6 @@
     .team-table th { font-weight: 600; background: var(--bg); }
     .team-table tr:hover { background: #f9fafb; }
     .team-table button { padding: 4px 8px; font-size: 12px; }
-    /* Panel for table layout */
-    .floating-panel { 
-      position: static; 
-      width: 100%; 
-      height: auto; 
-      min-height: 320px; /* Default height larger to show the table layout image (~2x day cell) */
-      background: #dbeafe; /* Light blue background for better visibility */
-      border: 1px solid #93c5fd; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 20px rgba(2,6,23,.15); 
-      overflow: hidden;
-    }
-    .floating-panel-header {
-      padding: 8px 12px;
-      background: #f9fafb;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-      font-size: 13px;
-      user-select: none;
-    }
-    .floating-panel-content {
-      padding: 12px;
-      overflow-y: auto;
-    }
   </style>
 </head>
 <body>
@@ -163,15 +137,12 @@
         <div class="grid grid-7" id="calendar"></div>
       </div>
 
-      <!-- Panel for table layout -->
-      <div class="floating-panel" id="floating-panel">
-        <div class="floating-panel-header" id="panel-header">
-          <div>Rozloženie stolov</div>
-          <button class="btn" id="close-panel" style="padding: 4px 8px; font-size: 11px;">✕</button>
-        </div>
-        <div class="floating-panel-content">
-          <div class="muted" id="panel-plan-date" style="margin-bottom: 12px; font-size: 13px;"></div>
-          
+      <aside class="sidebar">
+        <div class="plan-wrap" style="width:100%;">
+          <div class="plan-title">
+            <span>Rozloženie stolov</span>
+            <span class="muted" id="plan-date"></span>
+          </div>
           <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
             <defs>
               <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -227,7 +198,7 @@
             <button class="btn primary" id="reserve-btn">Rezervovať</button>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   </main>
 
@@ -702,7 +673,7 @@
         var c=document.getElementById("s"+i), t=document.getElementById("t"+i), li=document.getElementById("l"+i), n=s[i];
         if(n){ c.classList.add("occ"); t.textContent=labelOf(n,true); if(li) li.textContent="🔒"; } else { c.classList.remove("occ"); t.textContent=""; if(li) li.textContent=""; }
       }
-      document.getElementById("panel-plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
+      document.getElementById("plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
     }
 
     function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
@@ -1697,11 +1668,6 @@
     }
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
-
-    document.getElementById("close-panel").onclick=function(){
-      var panel = document.getElementById("floating-panel");
-      panel.style.display = "none";
-    };
 
     // Real-time polling for concurrent changes
     function startPolling() {
