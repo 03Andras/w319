@@ -447,9 +447,21 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(dataToSave)
       })
-      .then(function(res){ return res.json(); })
+      .then(function(res){ 
+        if (!res.ok) {
+          return res.json().then(function(errorData) {
+            throw errorData;
+          });
+        }
+        return res.json(); 
+      })
       .then(function(){ if(callback) callback(); })
-      .catch(function(err){ console.error('Error saving settings:', err); });
+      .catch(function(err){ 
+        console.error('Error saving settings:', err);
+        if (err && err.message) {
+          alert("Chyba: " + err.message);
+        }
+      });
     }
     
     function loadAuditLog(callback) {
@@ -639,7 +651,14 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(dataToSave)
       })
-      .then(function(res){ return res.json(); })
+      .then(function(res){ 
+        if (!res.ok) {
+          return res.json().then(function(errorData) {
+            throw errorData;
+          });
+        }
+        return res.json(); 
+      })
       .then(function(){ 
         scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
         // Self-check: verify data was actually saved correctly
@@ -660,7 +679,12 @@
       })
       .catch(function(err){ 
         console.error('Error saving schedule:', err); 
-        showNotification("✗ Chyba pri ukladaní!", true);
+        // Check if it's a file permission error
+        if (err && err.message) {
+          showNotification("✗ " + err.message, true);
+        } else {
+          showNotification("✗ Chyba pri ukladaní!", true);
+        }
       });
     }
     
@@ -1955,7 +1979,7 @@
   <!-- PIN Code Validation Script -->
   <script>
     (function() {
-      var correctPin = "147258369";
+      var correctPin = null; // Will be fetched from API
       var pinOverlay = document.getElementById("pin-overlay");
       var pinInput = document.getElementById("pin-input");
       var pinSubmit = document.getElementById("pin-submit");
@@ -1968,8 +1992,27 @@
         mainContent.classList.add('visible');
       }
       
+      // Fetch PIN from API
+      fetch('api.php?action=getPinCode')
+        .then(function(res){ return res.json(); })
+        .then(function(data){ 
+          correctPin = data.pinCode || '147258369';
+        })
+        .catch(function(err){ 
+          console.error('Error loading PIN:', err);
+          // Fallback to default if API fails
+          correctPin = '147258369';
+        });
+      
       function validatePin() {
         var enteredPin = pinInput.value;
+        
+        // If PIN hasn't loaded yet, wait a moment
+        if (correctPin === null) {
+          setTimeout(validatePin, 100);
+          return;
+        }
+        
         if (enteredPin === correctPin) {
           // Correct PIN
           sessionStorage.setItem('pinValidated', 'true');
