@@ -78,6 +78,7 @@ switch ($action) {
             $yearMonth = $decoded['yearMonth'] ?? '';
             $scheduleData = $decoded['data'] ?? [];
             $user = $decoded['user'] ?? 'Unknown';
+            $changeDetails = $decoded['changeDetails'] ?? [];
             
             if (empty($yearMonth)) {
                 http_response_code(400);
@@ -85,11 +86,19 @@ switch ($action) {
                 break;
             }
             
+            // Load old schedule to compare
             $scheduleFile = getScheduleFile($yearMonth);
+            $oldSchedule = [];
+            if (file_exists($scheduleFile)) {
+                $oldSchedule = json_decode(file_get_contents($scheduleFile), true) ?: [];
+            }
+            
+            // Save new schedule
             file_put_contents($scheduleFile, json_encode($scheduleData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             
-            // Add audit log
-            addAuditLog($user, 'schedule_update', ['yearMonth' => $yearMonth]);
+            // Add detailed audit log
+            $logDetails = array_merge($changeDetails, ['yearMonth' => $yearMonth]);
+            addAuditLog($user, 'schedule_update', $logDetails);
             
             echo json_encode(['success' => true]);
         } else {

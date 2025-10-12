@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rezervácia stolov – zdieľaná verzia (v10)</title>
+  <title>Kancelária 3.19</title>
   <style>
     :root { --bg:#f6f8fb; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --shadow: 0 10px 30px rgba(2,6,23,.06); --holiday:#f3f4f6; --holiday-text:#9ca3af; --free:#ecfdf5; --free-border:#86efac; }
     * { box-sizing: border-box; }
@@ -83,7 +83,7 @@
 <body>
   <header class="sticky">
     <div class="container row" style="justify-content: space-between;">
-      <h1>Rezervácia stolov – zdieľaná verzia</h1>
+      <h1>Kancelária 3.19</h1>
       <div class="row">
         <button class="btn" id="nav-prev">←</button>
         <select id="month"></select>
@@ -91,6 +91,7 @@
         <button class="btn" id="nav-next">→</button>
       </div>
       <div class="row">
+        <button class="btn" id="open-logs">Zobraziť logy</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
     </div>
@@ -261,16 +262,23 @@
           </div>
         </div>
 
-        <div style="height:12px"></div>
-        <div id="audit-log-section" style="display:none;">
-          <div style="font-weight:600; margin-bottom:6px">Záznam zmien (Audit Log)</div>
-          <div id="audit-log" style="max-height:300px; overflow-y:auto; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:8px;">
-            <div class="muted">Načítavam...</div>
-          </div>
-        </div>
-
         <div class="row" style="justify-content:flex-end; margin-top:12px">
           <button class="btn" id="save-settings">Uložiť</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Log -->
+  <div id="logs-overlay" class="overlay">
+    <div class="modal">
+      <header>
+        <div style="font-weight:700">Záznam zmien (Audit Log)</div>
+        <button class="btn" id="close-logs">Zavrieť</button>
+      </header>
+      <div class="content" style="padding:12px;">
+        <div id="audit-log" style="max-height:500px; overflow-y:auto; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:8px;">
+          <div class="muted">Načítavam...</div>
         </div>
       </div>
     </div>
@@ -375,6 +383,15 @@
       return name.split(" ").pop();
     }
     
+    // Check if a date is in the past (before today)
+    function isPastDate(dateStr){ 
+      var d = parseDateStr(dateStr);
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      d.setHours(0, 0, 0, 0);
+      return d < today; 
+    }
+    
     function isAdmin() {
       var currentUser = myCurrentName();
       return currentUser && settings.adminUser && currentUser.toLowerCase() === settings.adminUser.toLowerCase();
@@ -415,7 +432,8 @@
       var dataToSave = {
         yearMonth: yearMonth,
         data: schedule,
-        user: myCurrentName()
+        user: myCurrentName(),
+        changeDetails: details || {}
       };
       fetch('api.php?action=saveSchedule', {
         method: 'POST',
@@ -598,11 +616,31 @@
 
         var top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
         var l=document.createElement("div"); l.style.fontWeight="700"; l.textContent=d+".";
-        var r=document.createElement("div"); r.className="pill"; r.textContent="obs.: "+taken+"/"+DEFAULT_SEATS;
+        var r=document.createElement("div"); r.className="pill"; 
+        r.textContent="obs.: "+taken+"/"+DEFAULT_SEATS;
+        // If office is full, show in red
+        if(taken >= DEFAULT_SEATS && !nonWork){
+          r.style.color = "#ef4444";
+          r.style.borderColor = "#ef4444";
+          r.style.fontWeight = "700";
+        }
         top.appendChild(l); top.appendChild(r); cell.appendChild(top);
 
         if(!nonWork){
           var listDiv=document.createElement("div"); listDiv.className="seatlist";
+          
+          // Add full office warning if all seats are taken
+          if(taken >= DEFAULT_SEATS){
+            var fullMsg=document.createElement("div");
+            fullMsg.style.color = "#ef4444";
+            fullMsg.style.fontWeight = "700";
+            fullMsg.style.fontSize = "11px";
+            fullMsg.style.padding = "4px 6px";
+            fullMsg.style.textAlign = "center";
+            fullMsg.textContent = "Erre a napra teljesen megtelt az iroda";
+            listDiv.appendChild(fullMsg);
+          }
+          
           for(var idx=1; idx<=DEFAULT_SEATS; idx++){
             var line=document.createElement("div"); line.className="seatline"+(seats[idx] ? "" : " free");
             var no=document.createElement("span"); no.className="seatno"; no.textContent=idx;
@@ -615,40 +653,42 @@
             } else {
               who.innerHTML="";
               line.appendChild(no); line.appendChild(who);
-              // Add click handler for free seats
-              (function(ds, seatIdx){
-                line.style.cursor = "pointer";
-                line.onclick = function(e){
-                  e.stopPropagation();
-                  var myName = myCurrentName();
-                  if(!myName){ 
-                    alert("Prosím, najprv vyberte svoje meno.");
-                    return; 
-                  }
-                  var s = getDaySeats(ds);
-                  // Check if seat is still free
-                  if(s[seatIdx]){
-                    alert("Toto miesto je už obsadené.");
-                    return;
-                  }
-                  // Remove user from other seats on this day
-                  for(var k=1; k<=DEFAULT_SEATS; k++){ 
-                    if(k!==seatIdx && s[k]===myName) s[k]=""; 
-                  }
-                  s[seatIdx] = myName;
-                  var next = {}; 
-                  for(var key in schedule) next[key] = schedule[key]; 
-                  next[ds] = s; 
-                  schedule = next;
-                  // Pass details for notification
-                  var dt = parseDateStr(ds);
-                  applyChangesWithDetails({
-                    type: 'reservation',
-                    date: dt.toLocaleDateString("sk-SK"),
-                    seat: seatIdx
-                  });
-                };
-              })(dStr, idx);
+              // Add click handler for free seats (only for today and future dates)
+              if(!isPastDate(dStr)){
+                (function(ds, seatIdx){
+                  line.style.cursor = "pointer";
+                  line.onclick = function(e){
+                    e.stopPropagation();
+                    var myName = myCurrentName();
+                    if(!myName){ 
+                      alert("Prosím, najprv vyberte svoje meno.");
+                      return; 
+                    }
+                    var s = getDaySeats(ds);
+                    // Check if seat is still free
+                    if(s[seatIdx]){
+                      alert("Toto miesto je už obsadené.");
+                      return;
+                    }
+                    // Remove user from other seats on this day
+                    for(var k=1; k<=DEFAULT_SEATS; k++){ 
+                      if(k!==seatIdx && s[k]===myName) s[k]=""; 
+                    }
+                    s[seatIdx] = myName;
+                    var next = {}; 
+                    for(var key in schedule) next[key] = schedule[key]; 
+                    next[ds] = s; 
+                    schedule = next;
+                    // Pass details for notification
+                    var dt = parseDateStr(ds);
+                    applyChangesWithDetails({
+                      type: 'reservation',
+                      date: dt.toLocaleDateString("sk-SK"),
+                      seat: seatIdx
+                    });
+                  };
+                })(dStr, idx);
+              }
             }
             listDiv.appendChild(line);
           }
@@ -661,8 +701,15 @@
         // Footer with per-day reserve button (only for working days)
         var footer=document.createElement("div"); footer.className="footer";
         if(!nonWork){
-          var btn=document.createElement("button"); btn.className="btn reserve-mini"; btn.textContent="Rezervuj";
-          (function(ds){ btn.onclick=function(e){ e.stopPropagation(); openModal(ds); }; })(dStr);
+          var btn=document.createElement("button"); btn.className="btn reserve-mini"; btn.textContent="Zmeniť";
+          // Disable button for past dates
+          if(isPastDate(dStr)){
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            btn.style.cursor = "not-allowed";
+          } else {
+            (function(ds){ btn.onclick=function(e){ e.stopPropagation(); openModal(ds); }; })(dStr);
+          }
           footer.appendChild(btn);
         }
         cell.appendChild(footer);
@@ -680,6 +727,13 @@
     function openModal(dateStr){
       var dt=parseDateStr(dateStr);
       if(isNonWorking(dt)){ return; }
+      
+      // Prevent editing past dates
+      if(isPastDate(dateStr)){
+        alert("Nie je možné upravovať rezervácie v minulosti.");
+        return;
+      }
+      
       var ov=document.getElementById("overlay"); ov.classList.add("show");
       document.getElementById("modal-title").textContent=dt.toLocaleDateString("sk-SK", {day:"2-digit", month:"2-digit", year:"numeric"});
       var seatsDiv=document.getElementById("seats"); seatsDiv.innerHTML="";
@@ -871,9 +925,6 @@
     }
     
     function renderAuditLog() {
-      if (!isAdmin()) return;
-      
-      document.getElementById("audit-log-section").style.display = "block";
       loadAuditLog(function(logs) {
         var logDiv = document.getElementById("audit-log");
         if (logs.length === 0) {
@@ -882,11 +933,23 @@
         }
         
         logDiv.innerHTML = "";
-        logs.reverse().slice(0, 50).forEach(function(log) {
+        logs.reverse().slice(0, 100).forEach(function(log) {
           var entry = document.createElement("div");
-          entry.style.padding = "4px 0";
+          entry.style.padding = "6px 0";
           entry.style.borderBottom = "1px solid var(--border)";
-          entry.innerHTML = "<b>" + log.timestamp + "</b> - " + log.user + ": " + log.action;
+          
+          var detailsText = "";
+          if (log.details) {
+            if (log.details.type === 'reservation') {
+              detailsText = " - Rezervácia: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
+            } else if (log.details.type === 'deletion') {
+              detailsText = " - Zrušenie: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
+            } else if (log.details.changes) {
+              detailsText = " - " + log.details.changes;
+            }
+          }
+          
+          entry.innerHTML = "<b>" + log.timestamp + "</b> - " + log.user + ": " + log.action + detailsText;
           logDiv.appendChild(entry);
         });
       });
@@ -962,12 +1025,32 @@
     document.getElementById("custom-name").oninput=function(e){ ui.customName=e.target.value; };
     document.getElementById("clear-custom").onclick=function(){ ui.customName=""; document.getElementById("custom-name").value=""; };
     document.getElementById("open-settings").onclick=function(){
+      // Check if there's an admin and if current user is not admin
+      var hasAdmin = settings.adminUser && settings.adminUser.trim() !== "";
+      var currentUser = myCurrentName();
+      var userIsAdmin = isAdmin();
+      
+      if(hasAdmin && !userIsAdmin){
+        // Prompt for password
+        var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
+        if(password !== "Cica123"){
+          alert("Nesprávne heslo!");
+          return;
+        }
+      }
+      
       document.getElementById("settings-overlay").classList.add("show");
       renderOwnerDropdown();
       document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
       document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
       renderTeamTable();
+    };
+    document.getElementById("open-logs").onclick=function(){
+      document.getElementById("logs-overlay").classList.add("show");
       renderAuditLog();
+    };
+    document.getElementById("close-logs").onclick=function(){ 
+      document.getElementById("logs-overlay").classList.remove("show"); 
     };
     document.getElementById("save-settings").onclick=function(){
       var ownerSelect = document.getElementById("owner-name");
