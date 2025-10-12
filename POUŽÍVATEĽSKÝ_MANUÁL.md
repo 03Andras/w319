@@ -82,7 +82,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ---
 
-## otázky
+## Časté otázky
 **Môžem mať viacero rezervácií v ten istý deň?**
 Nie, systém umožňuje len jednu rezerváciu na osobu na deň.
 
