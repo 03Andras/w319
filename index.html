@@ -21,7 +21,7 @@
     .muted { color: var(--muted); }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
     .grid { display:grid; gap:6px; }
-    .grid-7 { grid-template-columns: repeat(7, minmax(120px, 1fr)); } /* širšie stĺpce */
+    .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); } /* širšie stĺpce */
     .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease; display:flex; flex-direction:column; }
     .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
     .day:focus { outline: none; }
@@ -39,8 +39,12 @@
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
     .lock { font-size: 12px; margin-left: 4px; }
     .layout { display:grid; grid-template-columns: minmax(0, 1fr) 420px; gap:12px; align-items:start; }
-    .sidebar { position: sticky; top:72px; display: grid; gap:12px; }
-    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+    .sidebar { position: sticky; top:72px; display: grid; gap:12px; transition: transform 0.3s ease; }
+    .sidebar.collapsed { transform: translateX(100%); position: fixed; right: 0; top: 72px; }
+    .sidebar-toggle { position: fixed; right: 12px; top: 100px; z-index: 20; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); transition: transform 0.3s ease; }
+    .sidebar-toggle:hover { background: #1d4ed8; }
+    .sidebar-toggle.sidebar-visible { transform: translateX(-430px); }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; transform: none !important; } .sidebar-toggle { display: none; } }
     .plan-wrap { padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
     .status { font-size:12px; }
@@ -56,9 +60,10 @@
     /* Modal overlay */
     .overlay { position: fixed; inset:0; background: rgba(2,6,23,.45); display:none; align-items:center; justify-content:center; padding:16px; z-index: 50; }
     .overlay.show { display:flex; }
-    .modal { width:100%; max-width: 700px; background:#fff; border-radius:16px; border:1px solid var(--border); overflow:hidden; box-shadow: var(--shadow); }
-    .modal header, .modal footer { padding:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; }
+    .modal { width:100%; max-width: 700px; max-height: 90vh; background:#fff; border-radius:16px; border:1px solid var(--border); overflow:hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+    .modal header, .modal footer { padding:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; flex-shrink: 0; }
     .modal footer { border-top:1px solid var(--border); border-bottom:none; }
+    .modal .content { overflow-y: auto; flex: 1; }
     .seat { display:flex; align-items:center; justify-content:flex-end; border:1px solid var(--border); border-radius:12px; padding:8px; }
     .seat.mine { background:#ecfdf5; }
     .seats { display:grid; gap:8px; }
@@ -100,6 +105,9 @@
   <div id="notification" class="notification">
     <span id="notification-text"></span>
   </div>
+
+  <!-- Sidebar toggle button -->
+  <button id="sidebar-toggle" class="sidebar-toggle sidebar-visible" title="Prepnúť bočný panel">→</button>
 
   <main class="container">
     <div class="layout">
@@ -479,19 +487,66 @@
       document.getElementById("custom-name").value = ui.customName;
 
       // Today card
-      var todayStr=fmtDate(new Date()); var todaySeats=getDaySeats(todayStr); var todayList=[];
-      for(var s in todaySeats){ if(todaySeats[s]) todayList.push([parseInt(s,10), todaySeats[s]]); }
-      todayList.sort(function(a,b){ return a[0]-b[0]; });
+      var todayStr=fmtDate(new Date()); 
+      var todaySeats=getDaySeats(todayStr); 
+      var todayList=[];
+      for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
+      
+      // Tomorrow
+      var tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      var tomorrowStr = fmtDate(tomorrow);
+      var tomorrowSeats = getDaySeats(tomorrowStr);
+      var tomorrowList = [];
+      for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
+      
+      // Sort both lists alphabetically by surname
+      todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+      tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+      
       var card=document.getElementById("today-card"); card.innerHTML="";
-      var title=document.createElement("div"); title.style.fontWeight="600"; title.style.fontSize="14px"; title.style.marginBottom="6px";
-      title.textContent="Dnes v kancli ("+(new Date()).toLocaleDateString("sk-SK")+"): "+todayList.length+" ľudí";
-      card.appendChild(title);
+      
+      // Today section
+      var todayTitle=document.createElement("div"); 
+      todayTitle.style.fontWeight="600"; 
+      todayTitle.style.fontSize="14px"; 
+      todayTitle.style.marginBottom="6px";
+      todayTitle.textContent="Dnes v kancellárii ("+(new Date()).toLocaleDateString("sk-SK")+"): "+todayList.length+" ľudí";
+      card.appendChild(todayTitle);
+      
       if(todayList.length){
-        var wrap=document.createElement("div"); wrap.className="row"; wrap.style.flexWrap="wrap";
-        for(var t=0;t<todayList.length;t++){ var pill=document.createElement("span"); pill.className="pill"; pill.textContent=labelOf(todayList[t][1],false)+" (stôl "+todayList[t][0]+")"; wrap.appendChild(pill); }
+        var wrap=document.createElement("div"); 
+        wrap.style.fontSize="13px";
+        wrap.textContent = todayList.map(function(name){ return labelOf(name, false); }).join(", ");
         card.appendChild(wrap);
       } else {
-        var empty=document.createElement("div"); empty.className="muted"; empty.style.fontSize="14px"; empty.textContent="Zatiaľ nikto."; card.appendChild(empty);
+        var empty=document.createElement("div"); 
+        empty.className="muted"; 
+        empty.style.fontSize="14px"; 
+        empty.textContent="Zatiaľ nikto."; 
+        card.appendChild(empty);
+      }
+      
+      // Tomorrow section
+      var tomorrowTitle=document.createElement("div"); 
+      tomorrowTitle.style.fontWeight="600"; 
+      tomorrowTitle.style.fontSize="14px"; 
+      tomorrowTitle.style.marginTop="10px";
+      tomorrowTitle.style.marginBottom="6px";
+      tomorrowTitle.textContent="Zajtra v kancellárii ("+tomorrow.toLocaleDateString("sk-SK")+"): "+tomorrowList.length+" ľudí";
+      card.appendChild(tomorrowTitle);
+      
+      if(tomorrowList.length){
+        var wrapTomorrow=document.createElement("div"); 
+        wrapTomorrow.style.fontSize="13px";
+        wrapTomorrow.textContent = tomorrowList.map(function(name){ return labelOf(name, false); }).join(", ");
+        card.appendChild(wrapTomorrow);
+      } else {
+        var emptyTomorrow=document.createElement("div"); 
+        emptyTomorrow.className="muted"; 
+        emptyTomorrow.style.fontSize="14px"; 
+        emptyTomorrow.textContent="Zatiaľ nikto."; 
+        card.appendChild(emptyTomorrow);
       }
 
       // Calendar
@@ -609,6 +664,11 @@
       }
 
       function reserve(seat){
+        if(!myName) {
+          alert("Prosím, najprv vyberte svoje meno.");
+          return;
+        }
+        
         if(!repeatWeekly.checked){
           var res=setSeatSingleLocal(dateStr, seat);
           if(res==="conflict"){
@@ -618,17 +678,26 @@
           }
           return;
         }
+        
+        // Repeat weekly functionality
         var dates = allSameWeekdayDatesInMonth(dt);
         var skipped=[];
+        var successful = 0;
         for(var i=0;i<dates.length;i++){
           var ds=fmtDate(dates[i]);
           if(isNonWorking(dates[i])) continue;
           var r=setSeatSingleLocal(ds, seat);
-          if(r==="conflict") skipped.push(ds);
+          if(r==="conflict") {
+            skipped.push(ds);
+          } else {
+            successful++;
+          }
         }
         applyChanges();
         if(skipped.length){
-          alert("Niektoré dni sa neuložili, lebo miesto je už obsadené: " + skipped.join(", "));
+          alert("Úspešne rezervované: " + successful + " dní.\nNiektoré dni sa neuložili, lebo miesto je už obsadené: " + skipped.join(", "));
+        } else if(successful > 0) {
+          showNotification("✓ Úspešne rezervované " + successful + " dní!", false);
         }
       }
 
@@ -782,10 +851,30 @@
       renderOwnerDropdown();
     };
 
+    // Helper function to check if user can view a specific month
+    function canViewMonth(year, month) {
+      if (isAdmin()) return true;
+      
+      var targetDate = new Date(year, month, 1);
+      var today = new Date();
+      var twoMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+      
+      return targetDate >= twoMonthsAgo;
+    }
+
     // Events
     document.getElementById("nav-prev").onclick=function(){ 
       var m=ui.month-1; 
-      if(m<0){ ui.month=11; ui.year--; } else ui.month=m; 
+      var y=ui.year;
+      if(m<0){ m=11; y--; }
+      
+      if(!canViewMonth(y, m)) {
+        alert("Môžete prezerať len predchádzajúce 2 mesiace. Administrátori môžu prezerať všetko.");
+        return;
+      }
+      
+      ui.month=m;
+      ui.year=y;
       loadData(ui.year, ui.month, function() { render(); });
     };
     document.getElementById("nav-next").onclick=function(){ 
@@ -794,12 +883,23 @@
       loadData(ui.year, ui.month, function() { render(); });
     };
     document.getElementById("month").onchange=function(e){ 
-      ui.month=parseInt(e.target.value,10); 
+      var newMonth = parseInt(e.target.value,10);
+      if(!canViewMonth(ui.year, newMonth)) {
+        alert("Môžete prezerať len predchádzajúce 2 mesiace. Administrátori môžu prezerať všetko.");
+        e.target.value = ui.month;
+        return;
+      }
+      ui.month=newMonth; 
       loadData(ui.year, ui.month, function() { render(); });
     };
     document.getElementById("year").oninput=function(e){ 
       var v=parseInt(e.target.value,10); 
       if(!isNaN(v)) {
+        if(!canViewMonth(v, ui.month)) {
+          alert("Môžete prezerať len predchádzajúce 2 mesiace. Administrátori môžu prezerať všetko.");
+          e.target.value = ui.year;
+          return;
+        }
         ui.year=v; 
         loadData(ui.year, ui.month, function() { render(); });
       }
@@ -830,6 +930,24 @@
     document.getElementById("close-settings").onclick=function(){ document.getElementById("settings-overlay").classList.remove("show"); };
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
+
+    // Sidebar toggle
+    document.getElementById("sidebar-toggle").onclick=function(){
+      var sidebar = document.querySelector(".sidebar");
+      var toggle = document.getElementById("sidebar-toggle");
+      
+      if(sidebar.classList.contains("collapsed")) {
+        sidebar.classList.remove("collapsed");
+        toggle.classList.add("sidebar-visible");
+        toggle.textContent = "→";
+        toggle.title = "Skryť bočný panel";
+      } else {
+        sidebar.classList.add("collapsed");
+        toggle.classList.remove("sidebar-visible");
+        toggle.textContent = "←";
+        toggle.title = "Zobraziť bočný panel";
+      }
+    };
 
     // Real-time polling for concurrent changes
     function startPolling() {
