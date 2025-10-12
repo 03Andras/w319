@@ -212,6 +212,16 @@
           <input type="checkbox" id="repeat-weekly" />
           <span>Opakovať každý týždeň v tomto mesiaci (rovnaký deň v týždni)</span>
         </label>
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <input type="checkbox" id="reserve-for-other" />
+          <span>Rezervovať pre iného</span>
+        </label>
+        <div id="reserve-for-other-section" style="display:none; margin-bottom:10px;">
+          <label style="display:block; font-weight:600; margin-bottom:6px;">Vybrať osobu:</label>
+          <select id="reserve-for-other-select" style="width:100%; max-width:400px;">
+            <option value="">-- Vyberte osobu --</option>
+          </select>
+        </div>
         <div id="seats" class="seats"></div>
         <div class="row" style="justify-content:flex-end; margin-top:10px;">
 <button class="btn" id="modal-done">Hotovo</button>
@@ -921,12 +931,43 @@
       var seatsDiv=document.getElementById("seats"); seatsDiv.innerHTML="";
       var seats=getDaySeats(dateStr); var myName=myCurrentName();
       var repeatWeekly=document.getElementById("repeat-weekly");
+      
+      // Reserve for other person functionality
+      var reserveForOtherCheckbox = document.getElementById("reserve-for-other");
+      var reserveForOtherSection = document.getElementById("reserve-for-other-section");
+      var reserveForOtherSelect = document.getElementById("reserve-for-other-select");
+      
+      // Populate the select with team members
+      reserveForOtherSelect.innerHTML = '<option value="">-- Vyberte osobu --</option>';
+      if (settings.team && Array.isArray(settings.team)) {
+        settings.team.forEach(function(member) {
+          var option = document.createElement("option");
+          option.value = member;
+          option.textContent = member;
+          reserveForOtherSelect.appendChild(option);
+        });
+      }
+      
+      // Handle checkbox change
+      reserveForOtherCheckbox.onchange = function() {
+        if (this.checked) {
+          reserveForOtherSection.style.display = "block";
+        } else {
+          reserveForOtherSection.style.display = "none";
+          reserveForOtherSelect.value = "";
+        }
+      };
+      
+      // Reset checkbox and section when modal opens
+      reserveForOtherCheckbox.checked = false;
+      reserveForOtherSection.style.display = "none";
+      reserveForOtherSelect.value = "";
 
-      function setSeatSingleLocal(ds, seat){
+      function setSeatSingleLocal(ds, seat, userName){
         var s=getDaySeats(ds); var cur=s[seat];
-        if(cur && cur!==myName){ return "conflict"; } // strictly no overwrite
-        for(var k=1;k<=DEFAULT_SEATS;k++){ if(k!==seat && s[k]===myName) s[k]=""; }
-        s[seat]=myName;
+        if(cur && cur!==userName){ return "conflict"; } // strictly no overwrite
+        for(var k=1;k<=DEFAULT_SEATS;k++){ if(k!==seat && s[k]===userName) s[k]=""; }
+        s[seat]=userName;
         var next={}; for(var key in schedule) next[key]=schedule[key]; next[ds]=s; schedule=next; return true;
       }
 
@@ -938,13 +979,21 @@
       }
 
       function reserve(seat){
-        if(!myName) {
+        // Determine which user to reserve for
+        var userName = myName;
+        if (reserveForOtherCheckbox.checked) {
+          userName = reserveForOtherSelect.value;
+          if (!userName) {
+            alert("Prosím, vyberte osobu pre ktorú chcete rezervovať.");
+            return;
+          }
+        } else if (!myName) {
           alert("Prosím, najprv vyberte svoje meno.");
           return;
         }
         
         if(!repeatWeekly.checked){
-          var res=setSeatSingleLocal(dateStr, seat);
+          var res=setSeatSingleLocal(dateStr, seat, userName);
           if(res==="conflict"){
             alert("Toto miesto je už obsadené, nie je možné rezervovať.");
           } else {
@@ -964,7 +1013,7 @@
         for(var i=0;i<dates.length;i++){
           var ds=fmtDate(dates[i]);
           if(isNonWorking(dates[i])) continue;
-          var r=setSeatSingleLocal(ds, seat);
+          var r=setSeatSingleLocal(ds, seat, userName);
           if(r==="conflict") {
             skipped.push(ds);
           } else {
