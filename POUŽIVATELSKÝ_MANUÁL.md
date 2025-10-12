@@ -13,12 +13,9 @@ Pri prvom otvorení aplikácie budete požiadaný o:
 1. **PIN kód kancelárie** – Zadajte 9-ciferný PIN kód (dostanete ho od správcu systému)
 2. **Vaše meno** – Vyberte svoje meno zo zoznamu členov tímu
 
-**Dôležité:** Výber vášho mena určuje:
-- Ktoré rezervácie sa vám zobrazia ako „vaše" (modré)
-- Pod akým menom budete vytvárať nové rezervácie pre seba
-- Kto ste pri vytváraní rezervácií pre iných
+**Dôležité:** Výber vášho mena určuje pod akým menom budete vytvárať nové rezervácie pre seba
 
-Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom použití sa automaticky prihlásíte (pokiaľ nevymažete históriu prehliadača).
+Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom použití sa automaticky prihlásíte.
 
 ---
 
@@ -37,7 +34,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 2. V otvorenom modálnom okne **zaškrtnite** políčko **„Rezervovať pre iného"**
 3. Z rozbaľovacieho zoznamu **„Vybrať osobu"** vyberte meno kolegu
 4. Kliknite na tlačidlo **„Obsadiť"** pri voľnom stole
-5. Rezervácia sa vytvorí na meno kolegu, ale systém zaznamená, že ste ju vytvorili vy
+5. Rezervácia sa vytvorí na meno kolegu.
 
 ---
 
@@ -45,7 +42,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ### Zrušenie vlastnej rezervácie
 
-1. V kalendári kliknite na deň s vašou rezerváciou
+1. V kalendári kliknite na deň s vašou rezerváciou, "Zmeniť"
 2. V otvorenom modálnom okne kliknite na tlačidlo **„Zrušiť"** pri vašej rezervácii
 3. Rezervácia bude okamžite odstránená
 
@@ -53,8 +50,6 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 **Môžete zrušiť:**
 - Akúkoľvek rezerváciu **na vaše meno**
-- Ak ste **administrátor**, môžete zrušiť akúkoľvek rezerváciu (použije sa tlačidlo „Zrušiť (admin)")
-
 **Nemôžete zrušiť:**
 - Rezervácie na meno inej osoby (aj keď ste ju vytvorili vy pomocou „Rezervovať pre iného")
 - Len administrátori môžu rušiť cudzie rezervácie
@@ -73,14 +68,12 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 - **Zelené čísla** = voľné miesta (počet voľných stolov z celkových 7)
 - **Modré ikony** = vaše rezervované miesto (zobrazuje sa číslo stola)
-- **Oranžové ikony** = miesto rezervované pre kolegov
 - **Šedé dni** = víkendy (rezervácie nie sú možné)
 - Kliknutím na deň otvoríte detail s možnosťami rezervácie
 
 ### Tlačidlá v hlavičke
 - **← →** – Prechádzanie medzi mesiacmi
 - **História zmien** – Zobraziť audit log všetkých zmien
-- **Nastavenia** – Správa tímu a administrátorov (len pre administrátorov)
 
 ### Plán kancelárie (vpravo)
 - Vizuálny prehľad rozloženia stolov
@@ -89,22 +82,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ---
 
-## Administrátorské funkcie
-
-Ak ste administrátor, máte dodatočné oprávnenia:
-
-- **Zrušiť akúkoľvek rezerváciu** – Tlačidlo „Zrušiť (admin)" pri cudzích rezerváciách
-- **Odpojenie používateľov** – Odhlásenie iných používateľov zo systému
-- **Správa nastavení** – Zmena hesla, pridávanie/odstraňovanie členov tímu
-- **Pridávanie ďalších administrátorov** – Udelenie admin práv iným členom
-
----
-
-## Často kladené otázky
-
-**Čo sa stane, ak vymažem históriu prehliadača?**
-Budete musieť znova zadať PIN kód a vybrať svoje meno.
-
+## otázky
 **Môžem mať viacero rezervácií v ten istý deň?**
 Nie, systém umožňuje len jednu rezerváciu na osobu na deň.
 
@@ -118,7 +96,7 @@ Môžete rezervovať na akýkoľvek budúci dátum.
 Nie, staré rezervácie nie je možné vytvárať ani upravovať (okrem dnešného dňa).
 
 **Ako poznám, že rezervácia je moja?**
-Vaše rezervácie sú označené modrou farbou a vidíte pri nich tlačidlo „Zrušiť".
+Vaše rezervácie sú označené s vašou menou a vidíte pri nich tlačidlo „Zrušiť".
 
 **Môžem zrušiť rezerváciu, ktorú som vytvoril pre kolegu?**
 Nie, rezerváciu môže zrušiť len osoba, na ktorej meno je vytvorená, alebo administrátor.
@@ -126,18 +104,5 @@ Nie, rezerváciu môže zrušiť len osoba, na ktorej meno je vytvorená, alebo 
 **Čo znamená checkbox „Rezervovať pre iného"?**
 Umožňuje vám vytvoriť rezerváciu na meno iného člena tímu. Táto rezervácia sa zobrazí ako rezervácia daného kolegu, nie vaša.
 
-**Môžem meniť svoje meno počas používania systému?**
-Áno, dropdown „Moje meno" slúži len na to, aby systém vedel, kto ste. Zmena tohto výberu neovplyvní existujúce rezervácie, len určuje, ktoré rezervácie sa vám zobrazia ako „vaše".
-
 ---
-
-## Podpora
-
-Ak máte problémy s aplikáciou alebo potrebujete pomoc, kontaktujte:
-- **IT oddelenie Wüstenrot** - správa a podpora systému
-- **Administrátora systému** vo vašom tíme
-
----
-
 *Pripravila: Eva Mészáros*
-*Určené pre: IT oddelenie Wüstenrot*
