@@ -828,7 +828,7 @@
             fullMsg.style.fontSize = "11px";
             fullMsg.style.padding = "4px 6px";
             fullMsg.style.textAlign = "center";
-            fullMsg.textContent = "Tento deň je kancelária úplne zaplnená";
+            fullMsg.textContent = "Tento deň je kancelária úplne obsadená";
             listDiv.appendChild(fullMsg);
           }
           
@@ -875,8 +875,11 @@
                     applyChangesWithDetails({
                       type: 'reservation',
                       date: dt.toLocaleDateString("sk-SK"),
-                      seat: seatIdx
+                      seat: seatIdx,
+                      reservedFor: myName
                     });
+                    // Jump to the selected day in the table layout
+                    selectDay(ds);
                   };
                 })(dStr, idx);
               }
@@ -940,7 +943,8 @@
       // Populate the select with team members
       reserveForOtherSelect.innerHTML = '<option value="">-- Vyberte osobu --</option>';
       if (settings.team && Array.isArray(settings.team)) {
-        settings.team.forEach(function(member) {
+        var sortedTeam = sortBySurname(settings.team);
+        sortedTeam.forEach(function(member) {
           var option = document.createElement("option");
           option.value = member;
           option.textContent = member;
@@ -974,7 +978,14 @@
       function allSameWeekdayDatesInMonth(baseDate){
         var y=baseDate.getFullYear(), m=baseDate.getMonth(), wd=baseDate.getDay();
         var total=daysInMonth(y,m); var list=[];
-        for(var d=1; d<=total; d++){ var dt=new Date(y,m,d); if(dt.getDay()===wd && !isNonWorking(dt)) list.push(dt); }
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for(var d=1; d<=total; d++){ 
+          var dt=new Date(y,m,d); 
+          dt.setHours(0, 0, 0, 0);
+          // Only include dates from today onwards (not retroactive)
+          if(dt.getDay()===wd && !isNonWorking(dt) && dt >= today) list.push(dt); 
+        }
         return list;
       }
 
@@ -997,11 +1008,16 @@
           if(res==="conflict"){
             alert("Toto miesto je už obsadené, nie je možné rezervovať.");
           } else {
-            applyChangesWithDetails({
+            var details = {
               type: 'reservation',
               date: dt.toLocaleDateString("sk-SK"),
-              seat: seat
-            });
+              seat: seat,
+              reservedFor: userName
+            };
+            if (reserveForOtherCheckbox.checked) {
+              details.reservedBy = myName;
+            }
+            applyChangesWithDetails(details);
           }
           return;
         }
@@ -1020,7 +1036,18 @@
             successful++;
           }
         }
-        applyChanges();
+        var details = {
+          type: 'reservation',
+          repeat: 'weekly',
+          seat: seat,
+          reservedFor: userName,
+          successCount: successful
+        };
+        if (reserveForOtherCheckbox.checked) {
+          details.reservedBy = myName;
+        }
+        saveData(null, details);
+        render();
         if(skipped.length){
           alert("Úspešne rezervované: " + successful + " dní.\nNiektoré dni sa neuložili, lebo miesto je už obsadené: " + skipped.join(", "));
         } else if(successful > 0) {
