@@ -84,7 +84,7 @@ chmod 755 /var/www/html/w319/data
 
 ```apache
 <VirtualHost *:80>
-    ServerName w319.wuestenrot.sk
+    ServerName w319.wuestenrot.sk  # alebo IP adresa servera
     DocumentRoot /var/www/html/w319
 
     <Directory /var/www/html/w319>
@@ -120,7 +120,7 @@ systemctl restart apache2
 ```nginx
 server {
     listen 80;
-    server_name w319.wuestenrot.sk;
+    server_name w319.wuestenrot.sk;  # alebo _ pre akúkoľvek doménu/IP
     root /var/www/html/w319;
     index index.html;
 
@@ -173,20 +173,26 @@ Otvorte v prehliadači: `http://localhost:8080/index.html`
 Systém je navrhnutý pre použitie v **internej firemnej sieti prístupnej cez VPN**.
 
 **Odporúčaná konfigurácia:**
-- Doména: `w319.wuestenrot.sk` alebo podobná interná doména
-- Prístup: Len cez firemný VPN
+- Prístup: Lokálna IP adresa alebo interná doména (napr. `192.168.x.x`, `w319.wuestenrot.sk`)
+- Sieť: Len cez firemný VPN alebo lokálnu internú sieť
 - Protokol: HTTP (v internej sieti) alebo HTTPS (ak je k dispozícii interný certifikát)
 
 **Príklad podobného nasadenia:**
 Podobne ako systém dostupný na:
 - Cesta: `V:\vzajomne_informacie\elearning\login.exe`
 - URL: `https://wop.wuestenrot.sk/edng/login`
+- Alebo lokálny server prístupný cez IP (napr. `http://192.168.1.100/w319`)
 
-### DNS konfigurácia
+### DNS konfigurácia (voliteľné)
 
-V DNS serveri vytvorte A záznam:
+**Pri použití domény** - v DNS serveri vytvorte A záznam:
 ```
 w319.wuestenrot.sk  ->  [IP adresa webového servera]
+```
+
+**Pri použití lokálnej IP adresy** - DNS konfigurácia nie je potrebná, prístup priamo cez IP:
+```
+http://[IP adresa]/w319
 ```
 
 ---
@@ -318,9 +324,8 @@ find /var/www/html/w319/data -name "schedule_*.json" -mtime +365 -exec mv {} /ar
 
 ## Kontaktné informácie
 
-Pre technickú podporu alebo otázky kontaktujte:
-- **IT oddelenie Wüstenrot**
-- **Správca systému**: Eva Mészáros
+Pre technickú podporu, otázky alebo nasadenie systému kontaktujte:
+- **IT oddelenie Wüstenrot** - správa a implementácia systému
 
 ---
 
@@ -334,15 +339,18 @@ Pre technickú podporu alebo otázky kontaktujte:
 ✅ Audit log pre sledovanie zmien
 
 **Odporúčanie pre produkčné nasadenie:**
-Nasaďte systém na interný webový server dostupný cez VPN, napríklad na doménu:
-- `w319.wuestenrot.sk`
-- `rezervacie.wuestenrot.sk`
-- `kancelaria319.wuestenrot.sk`
+Nasaďte systém na interný webový server dostupný cez VPN. Možnosti prístupu:
+- **Cez internú doménu**: `w319.wuestenrot.sk`, `rezervacie.wuestenrot.sk`, `kancelaria319.wuestenrot.sk`
+- **Cez lokálnu IP adresu**: `http://192.168.x.x/w319` alebo podobne
+- **Cez VPN pripojenie**: podľa konfigurácie internej siete
 
 Podobne ako existujúce interné systémy prístupné na `wop.wuestenrot.sk` alebo cez mapovanú cestu `V:\vzajomne_informacie\elearning\`.
 
+**Poznámka:** Systém je pripravený pre predloženie IT oddeleniu na posúdenie a implementáciu. IT oddelenie rozhodne o konkrétnom umiestnení a konfigurácii podľa bezpečnostných požiadaviek.
+
 ---
 
-*Vytvorila: Eva Mészáros*
+*Pripravila: Eva Mészáros*
+*Určené pre: IT oddelenie Wüstenrot na posúdenie a nasadenie*
 *Verzia dokumentácie: 1.0*
 *Dátum: Január 2025*

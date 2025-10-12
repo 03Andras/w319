@@ -65,4 +65,5 @@ Uloží nastavenia. Telo požiadavky musí byť JSON objekt.
 
 ## Licencia
 
-Vytvorila: Eva Mészáros
+Pripravila: Eva Mészáros
+Určené pre: IT oddelenie Wüstenrot na posúdenie a implementáciu

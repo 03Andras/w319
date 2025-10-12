@@ -105,9 +105,10 @@ Nie, staré rezervácie nie je možné vytvárať ani upravovať.
 ## Podpora
 
 Ak máte problémy s aplikáciou alebo potrebujete pomoc, kontaktujte:
-- **IT podporu** vašej spoločnosti
+- **IT oddelenie Wüstenrot** - správa a podpora systému
 - **Administrátora systému** vo vašom tíme
 
 ---
 
-*Vytvorila: Eva Mészáros*
+*Pripravila: Eva Mészáros*
+*Určené pre: IT oddelenie Wüstenrot*
