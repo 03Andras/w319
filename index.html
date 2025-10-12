@@ -1391,6 +1391,27 @@
           entry.style.padding = "6px 0";
           entry.style.borderBottom = "1px solid var(--border)";
           
+          // Set background color based on action type
+          var bgColor = "#ffffff"; // default white
+          switch(log.action) {
+            case 'schedule_update':
+              bgColor = "#e3f2fd"; // light blue
+              break;
+            case 'settings_update':
+              bgColor = "#fff3e0"; // light orange
+              break;
+            case 'user_login':
+              bgColor = "#e8f5e9"; // light green
+              break;
+            case 'user_disconnect':
+              bgColor = "#ffebee"; // light red
+              break;
+            case 'password_change':
+              bgColor = "#f3e5f5"; // light purple
+              break;
+          }
+          entry.style.backgroundColor = bgColor;
+          
           var detailsText = "";
           if (log.details) {
             if (log.details.type === 'reservation') {
