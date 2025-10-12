@@ -84,9 +84,9 @@
       top: 80px; 
       right: 20px; 
       width: 400px; 
-      height: 58px; /* Default height same as header bar */
-      background: #fff; 
-      border: 1px solid var(--border); 
+      height: 320px; /* Default height larger to show the table layout image (~2x day cell) */
+      background: #dbeafe; /* Light blue background for better visibility */
+      border: 1px solid #93c5fd; 
       border-radius: 12px; 
       box-shadow: 0 4px 20px rgba(2,6,23,.15); 
       z-index: 40; 
@@ -135,6 +135,7 @@
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
         <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
+        <button class="btn" id="open-sessions" style="display:none;">Sedenia</button>
         <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
@@ -372,6 +373,30 @@
     </div>
   </div>
 
+  <!-- Sessions -->
+  <div id="sessions-overlay" class="overlay">
+    <div class="modal">
+      <header>
+        <div style="font-weight:700">Aktívne sedenia</div>
+        <button class="btn" id="close-sessions">Zavrieť</button>
+      </header>
+      <div class="content" style="padding:12px;">
+        <table class="team-table">
+          <thead>
+            <tr>
+              <th>Používateľ</th>
+              <th>IP adresa</th>
+              <th>Prihlásenie</th>
+              <th>Posledná aktivita</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     var DEFAULT_SEATS = 7;
     var TEAM_DEFAULT = [
@@ -464,6 +489,49 @@
     
     function eraseCookie(name) {
       document.cookie = name + '=; Max-Age=-99999999;';
+    }
+
+    // Generate unique session ID
+    function generateSessionId() {
+      return 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    }
+
+    // Get or create session ID
+    function getSessionId() {
+      var sessionId = getCookie('sessionId');
+      if (!sessionId) {
+        sessionId = generateSessionId();
+        setCookie('sessionId', sessionId, 365);
+      }
+      return sessionId;
+    }
+
+    // Register session with server
+    function registerSession(userName) {
+      var sessionId = getSessionId();
+      fetch('api.php?action=registerSession', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({userName: userName, sessionId: sessionId})
+      })
+      .then(function(res){ return res.json(); })
+      .catch(function(err){ console.error('Error registering session:', err); });
+    }
+
+    // Check if session is still active
+    function checkSession() {
+      var sessionId = getSessionId();
+      fetch('api.php?action=checkSession&sessionId=' + encodeURIComponent(sessionId))
+        .then(function(res){ return res.json(); })
+        .then(function(data){ 
+          if (!data.active) {
+            // Session was disconnected, clear cookies and reload
+            eraseCookie('userName');
+            eraseCookie('sessionId');
+            location.reload();
+          }
+        })
+        .catch(function(err){ console.error('Error checking session:', err); });
     }
 
     function getYearMonth(year, month) {
@@ -655,6 +723,14 @@
     function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
 
     function render(){
+      // Show/hide Sessions button based on admin status
+      var sessionsBtn = document.getElementById("open-sessions");
+      if (isAdmin()) {
+        sessionsBtn.style.display = "";
+      } else {
+        sessionsBtn.style.display = "none";
+      }
+      
       // Month/year
       var monthSel=document.getElementById("month"); monthSel.innerHTML="";
       var months=["Január","Február","Marec","Apríl","Máj","Jún","Júl","August","September","Október","November","December"];
@@ -1149,18 +1225,16 @@
           btnDisconnect.onclick = function() {
             if(!confirm("Odpojiť používateľa '" + name + "' z počítača?\nBude požiadaný o opätovné prihlásenie.")) return;
             
-            // Generate a disconnect token specific to this user
-            var disconnectToken = 'disconnect_' + name.replace(/\s/g, '_') + '_' + Date.now();
-            setCookie('disconnectToken', disconnectToken, 365);
-            
             fetch('api.php?action=disconnectUser', {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName(), disconnectToken: disconnectToken})
+              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName()})
             })
             .then(function(res){ return res.json(); })
-            .then(function(){ 
-              showNotification("✓ Používateľ " + name + " bude odpojený pri ďalšom prihlásení", false);
+            .then(function(data){ 
+              var count = data.sessionsDisconnected || 0;
+              showNotification("✓ Odpojených " + count + " sedení používateľa " + name, false);
+              renderTeamTable(); // Refresh to show updated sessions
             })
             .catch(function(err){ console.error('Error disconnecting user:', err); });
           };
@@ -1246,6 +1320,71 @@
           logDiv.appendChild(entry);
         });
       });
+    }
+
+    function renderSessions() {
+      fetch('api.php?action=getSessions')
+        .then(function(res){ return res.json(); })
+        .then(function(sessions) {
+          var tbody = document.getElementById("sessions-table-body");
+          tbody.innerHTML = "";
+          
+          if (sessions.length === 0) {
+            var tr = document.createElement("tr");
+            var td = document.createElement("td");
+            td.colSpan = 5;
+            td.textContent = "Žiadne aktívne sedenia";
+            td.style.textAlign = "center";
+            td.className = "muted";
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+          }
+          
+          sessions.forEach(function(session) {
+            var tr = document.createElement("tr");
+            
+            var tdUser = document.createElement("td");
+            tdUser.textContent = session.userName || "Unknown";
+            tr.appendChild(tdUser);
+            
+            var tdIP = document.createElement("td");
+            tdIP.textContent = session.ipAddress || "Unknown";
+            tr.appendChild(tdIP);
+            
+            var tdLogin = document.createElement("td");
+            tdLogin.textContent = session.loginTime || "Unknown";
+            tdLogin.style.fontSize = "11px";
+            tr.appendChild(tdLogin);
+            
+            var tdActivity = document.createElement("td");
+            tdActivity.textContent = session.lastActivity || "Unknown";
+            tdActivity.style.fontSize = "11px";
+            tr.appendChild(tdActivity);
+            
+            var tdStatus = document.createElement("td");
+            var statusSpan = document.createElement("span");
+            statusSpan.className = "pill";
+            if (session.active !== false) {
+              statusSpan.textContent = "Aktívne";
+              statusSpan.style.background = "#ecfdf5";
+              statusSpan.style.borderColor = "#86efac";
+              statusSpan.style.color = "#059669";
+            } else {
+              statusSpan.textContent = "Odpojené";
+              statusSpan.style.background = "#fef2f2";
+              statusSpan.style.borderColor = "#fca5a5";
+              statusSpan.style.color = "#dc2626";
+            }
+            tdStatus.appendChild(statusSpan);
+            tr.appendChild(tdStatus);
+            
+            tbody.appendChild(tr);
+          });
+        })
+        .catch(function(err) {
+          console.error('Error loading sessions:', err);
+        });
     }
 
     document.getElementById("add-member").onclick=function(){
@@ -1414,6 +1553,15 @@
     document.getElementById("close-logs").onclick=function(){ 
       document.getElementById("logs-overlay").classList.remove("show"); 
     };
+    
+    document.getElementById("open-sessions").onclick=function(){
+      document.getElementById("sessions-overlay").classList.add("show");
+      renderSessions();
+    };
+    document.getElementById("close-sessions").onclick=function(){ 
+      document.getElementById("sessions-overlay").classList.remove("show"); 
+    };
+    
     document.getElementById("save-settings").onclick=function(){
       var ownerSelect = document.getElementById("owner-name");
       settings.ownerName = ownerSelect.value;
@@ -1639,6 +1787,9 @@
             updateLastUpdateTime();
           })
           .catch(function(err){ console.error('Polling error:', err); });
+        
+        // Check session status
+        checkSession();
       }, 4000); // Poll every 4 seconds
     }
     
@@ -1693,9 +1844,13 @@
           }
           setCookie('userName', selectedName, 365); // Store for 1 year
           ui.customName = selectedName;
+          registerSession(selectedName); // Register session with server
           document.getElementById('name-selection-modal').remove();
           render(); // Re-render to update header with name
         };
+      } else {
+        // User already has a name, register/check session
+        registerSession(storedName);
       }
     }
     
