@@ -98,7 +98,8 @@
       </div>
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
-        <button class="btn" id="open-logs">Zobraziť logy</button>
+        <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
+        <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
     </div>
@@ -254,8 +255,10 @@
         <label class="row"><input type="radio" name="labelstyle" id="style-initials" /> Iniciály</label>
 
         <div style="height:12px"></div>
-        <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
-        <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        <div id="team-section-header">
+          <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        </div>
         
         <div id="admin-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fefce8;">
           <div style="font-weight:600; margin-bottom:8px;">Správa administrátorov</div>
@@ -268,8 +271,6 @@
             <button class="btn" id="show-admin-password">Zobraziť heslo</button>
             <button class="btn" id="change-admin-password">Zmeniť heslo</button>
           </div>
-          
-          <div class="muted" style="font-size:11px;">Super admin heslo: "Cica432" (umožňuje všetky zmeny)</div>
         </div>
         
         <div id="data-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0f9ff;">
@@ -1070,9 +1071,41 @@
             btnRemove.style.marginLeft = "4px";
             btnRemove.onclick = function() {
               if(!confirm("Odstrániť '" + name + "' zo zoznamu?")) return;
+              
+              // Remove user from team
               team = team.filter(function(n){ return n !== name; });
               settings.team = team;
-              renderTeamTable();
+              
+              // Remove all future reservations for this user
+              var today = new Date();
+              today.setHours(0, 0, 0, 0);
+              var todayStr = fmtDate(today);
+              
+              var updatedSchedule = {};
+              for (var dateStr in schedule) {
+                if (dateStr >= todayStr) {
+                  // This is today or a future date
+                  var seats = schedule[dateStr];
+                  var updatedSeats = {};
+                  for (var seat in seats) {
+                    if (seats[seat] !== name) {
+                      updatedSeats[seat] = seats[seat];
+                    }
+                  }
+                  updatedSchedule[dateStr] = updatedSeats;
+                } else {
+                  // Keep past reservations unchanged
+                  updatedSchedule[dateStr] = schedule[dateStr];
+                }
+              }
+              schedule = updatedSchedule;
+              
+              // Save changes
+              saveSchedule(function() {
+                renderTeamTable();
+                render();
+                showNotification("✓ Používateľ bol odstránený a jeho budúce rezervácie boli zrušené.", false);
+              });
             };
             tdActions.appendChild(btnRemove);
           }
@@ -1318,16 +1351,31 @@
       renderTeamTable();
       renderAdminList();
       
-      // Show/hide admin management based on permissions
+      // Show/hide admin management and team section header based on permissions
       var adminMgmt = document.getElementById("admin-management");
       var dataMgmt = document.getElementById("data-management");
+      var teamSectionHeader = document.getElementById("team-section-header");
+      var passwordInput = document.getElementById("admin-password-input");
+      
       if (userIsAdmin || !hasAdmin) {
         adminMgmt.style.display = "block";
         dataMgmt.style.display = "block";
+        teamSectionHeader.style.display = "block";
         renderDataFilesList();
+        
+        // Show admin password by default for admins
+        passwordInput.type = "text";
+        passwordInput.value = settings.adminPassword || "Cica123";
+        document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         adminMgmt.style.display = "none";
         dataMgmt.style.display = "none";
+        teamSectionHeader.style.display = "none";
+        
+        // Keep password hidden for non-admins
+        passwordInput.type = "password";
+        passwordInput.value = "";
+        document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
       }
     };
     document.getElementById("open-logs").onclick=function(){
@@ -1526,9 +1574,23 @@
               scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
               render();
             }
+            updateLastUpdateTime();
           })
           .catch(function(err){ console.error('Polling error:', err); });
       }, 4000); // Poll every 4 seconds
+    }
+    
+    // Update last update timestamp in header
+    function updateLastUpdateTime() {
+      var now = new Date();
+      var day = ("0" + now.getDate()).slice(-2);
+      var month = ("0" + (now.getMonth() + 1)).slice(-2);
+      var year = now.getFullYear();
+      var hours = ("0" + now.getHours()).slice(-2);
+      var minutes = ("0" + now.getMinutes()).slice(-2);
+      var seconds = ("0" + now.getSeconds()).slice(-2);
+      var timeStr = "Aktuálne k: " + day + "." + month + "." + year + " " + hours + ":" + minutes + ":" + seconds;
+      document.getElementById("last-update-time").textContent = timeStr;
     }
 
     // init
@@ -1593,6 +1655,7 @@
       loadData(ui.year, ui.month, function(){
         initFocus(); 
         render();
+        updateLastUpdateTime(); // Set initial timestamp
         startPolling(); // Start real-time polling
       });
     });
