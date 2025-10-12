@@ -21,7 +21,7 @@ if (!file_exists($settingsFile)) {
         'labelStyle' => 'surname',
         'adminUser' => '',
         'adminUsers' => [],
-        'adminPassword' => 'Cica123',
+        'adminPassword' => 'Jablko123',
         'connectedUsers' => [],
         'team' => [
             "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",

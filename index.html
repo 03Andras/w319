@@ -94,7 +94,6 @@
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
         <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
-        <button class="btn" id="open-sessions" style="display:none;">Sedenia</button>
         <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
@@ -121,7 +120,6 @@
             <input id="custom-name" placeholder="Zadaj meno" />
             <button class="btn" id="clear-custom">Vymazať</button>
           </div>
-          <div class="muted" style="font-size:12px">* 1 človek = 1 stôl za deň (pri druhom mieste presunieme).</div>
         </div>
 
         <div class="row muted" style="font-size:12px; margin-bottom:4px;">
@@ -289,6 +287,12 @@
           </div>
         </div>
         
+        <div id="session-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #eff6ff;">
+          <div style="font-weight:600; margin-bottom:8px;">Session</div>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Zobraziť aktívne používateľské sedenia.</div>
+          <button class="btn" id="open-sessions-from-settings">Otvoriť Session</button>
+        </div>
+        
         <div id="team-management" style="margin-top:10px;">
           <table class="team-table">
             <thead>
@@ -333,7 +337,7 @@
   <div id="sessions-overlay" class="overlay">
     <div class="modal">
       <header>
-        <div style="font-weight:700">Aktívne sedenia</div>
+        <div style="font-weight:700">Session</div>
         <button class="btn" id="close-sessions">Zavrieť</button>
       </header>
       <div class="content" style="padding:12px;">
@@ -415,7 +419,7 @@
         .catch(function(){ callback([]); });
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Cica123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
@@ -679,14 +683,6 @@
     function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
 
     function render(){
-      // Show/hide Sessions button based on admin status
-      var sessionsBtn = document.getElementById("open-sessions");
-      if (isAdmin()) {
-        sessionsBtn.style.display = "";
-      } else {
-        sessionsBtn.style.display = "none";
-      }
-      
       // Month/year
       var monthSel=document.getElementById("month"); monthSel.innerHTML="";
       var months=["Január","Február","Marec","Apríl","Máj","Jún","Júl","August","September","Október","November","December"];
@@ -1254,7 +1250,13 @@
         }
         
         logDiv.innerHTML = "";
+        var userIsAdmin = isAdmin();
         logs.reverse().slice(0, 100).forEach(function(log) {
+          // Filter out user_login for non-admin users
+          if (!userIsAdmin && log.action === 'user_login') {
+            return; // Skip this log entry
+          }
+          
           var entry = document.createElement("div");
           entry.style.padding = "6px 0";
           entry.style.borderBottom = "1px solid var(--border)";
@@ -1360,7 +1362,7 @@
       var passwordInput = document.getElementById("admin-password-input");
       if (passwordInput.type === "password") {
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "Cica123";
+        passwordInput.value = settings.adminPassword || "Jablko123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         passwordInput.type = "password";
@@ -1391,6 +1393,11 @@
       document.getElementById("admin-password-input").value = "";
       document.getElementById("admin-password-input").type = "password";
       document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
+    };
+
+    document.getElementById("open-sessions-from-settings").onclick=function(){
+      document.getElementById("sessions-overlay").classList.add("show");
+      renderSessions();
     };
 
     // Helper function to check if user can view a specific month
@@ -1455,12 +1462,13 @@
       var currentUser = myCurrentName();
       var userIsAdmin = isAdmin();
       
-      if(hasAdmin && !userIsAdmin){
+      // Always require password if there's an admin configured
+      if(hasAdmin){
         // Prompt for password
         var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
         if(password === "Cica432"){
           // Super admin password - allow everything
-        } else if(password === (settings.adminPassword || "Cica123")){
+        } else if(password === (settings.adminPassword || "Jablko123")){
           // Regular admin password - OK
         } else {
           alert("Nesprávne heslo!");
@@ -1478,22 +1486,25 @@
       // Show/hide admin management and team section header based on permissions
       var adminMgmt = document.getElementById("admin-management");
       var dataMgmt = document.getElementById("data-management");
+      var sessionMgmt = document.getElementById("session-management");
       var teamSectionHeader = document.getElementById("team-section-header");
       var passwordInput = document.getElementById("admin-password-input");
       
       if (userIsAdmin || !hasAdmin) {
         adminMgmt.style.display = "block";
         dataMgmt.style.display = "block";
+        sessionMgmt.style.display = "block";
         teamSectionHeader.style.display = "block";
         renderDataFilesList();
         
         // Show admin password by default for admins
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "Cica123";
+        passwordInput.value = settings.adminPassword || "Jablko123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         adminMgmt.style.display = "none";
         dataMgmt.style.display = "none";
+        sessionMgmt.style.display = "none";
         teamSectionHeader.style.display = "none";
         
         // Keep password hidden for non-admins
@@ -1510,10 +1521,6 @@
       document.getElementById("logs-overlay").classList.remove("show"); 
     };
     
-    document.getElementById("open-sessions").onclick=function(){
-      document.getElementById("sessions-overlay").classList.add("show");
-      renderSessions();
-    };
     document.getElementById("close-sessions").onclick=function(){ 
       document.getElementById("sessions-overlay").classList.remove("show"); 
     };
