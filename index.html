@@ -1395,6 +1395,9 @@
           if (log.details) {
             if (log.details.type === 'reservation') {
               detailsText = " - Rezervácia: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
+              if (log.details.reservedFor && log.details.reservedBy) {
+                detailsText = " - Rezervácia: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ", Rezervoval: " + log.details.reservedBy + ", Pre: " + log.details.reservedFor + ")";
+              }
             } else if (log.details.type === 'deletion') {
               detailsText = " - Zrušenie: " + (log.details.date || "") + " (Miesto: " + (log.details.seat || "") + ")";
             } else if (log.details.type === 'admin_deletion') {
@@ -1986,8 +1989,8 @@
       var pinError = document.getElementById("pin-error");
       var mainContent = document.getElementById("main-content");
       
-      // Check if user has already entered correct PIN (session storage)
-      if (sessionStorage.getItem('pinValidated') === 'true') {
+      // Check if user has already entered correct PIN (cookie)
+      if (getCookie('pinValidated') === 'true') {
         pinOverlay.classList.add('hidden');
         mainContent.classList.add('visible');
       }
@@ -2014,8 +2017,8 @@
         }
         
         if (enteredPin === correctPin) {
-          // Correct PIN
-          sessionStorage.setItem('pinValidated', 'true');
+          // Correct PIN - save to cookies for 365 days
+          setCookie('pinValidated', 'true', 365);
           pinOverlay.classList.add('hidden');
           mainContent.classList.add('visible');
           pinError.classList.remove('show');
