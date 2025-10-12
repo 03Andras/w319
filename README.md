@@ -9,13 +9,12 @@ Jednoduchý systém na rezerváciu stolov v kancelárii s perzistentným ukladan
 **PIN kód pre prvé prihlásenie:**
 - Pri prvom otvorení aplikácie budete vyzvaní na zadanie PIN kódu
 - PIN kód: **147258369**
-- Tento kód sa používa na overenie, že ste oprávnený používateľ
+- Tento kód sa používa na overenie, že ste oprávnený používateľ - kedže ak stránka bude dostupná cez sieť, tak aj iný by mali prístup na stránku.
 
 **Admin heslo:**
 - Pre prístup k nastaveniam (tlačidlo "Nastavenia") je potrebné admin heslo
 - Predvolené admin heslo: **Jablko123**
-- Heslo môžete zmeniť v nastaveniach administrátora
-- Super admin heslo: **Cica432** (má všetky oprávnenia)
+- Heslo je možné zmeniť v nastaveniach administrátora
 
 ### Ako funguje systém cookies
 
@@ -23,30 +22,23 @@ Aplikácia využíva cookies pre uchovanie vašich preferencií a session inform
 
 1. **Uloženie vášho mena (userName cookie):**
    - Po prvom prihlásení s PIN kódom si systém zapamätá vaše vybrané meno
-   - Cookie sa ukladá na 365 dní
    - Vďaka tomu nemusíte zadávať meno pri každom otvorení aplikácie
 
 2. **Session ID (sessionId cookie):**
    - Každý používateľ dostane jedinečný session ID
    - Session ID sa generuje automaticky pri prvom prihlásení
-   - Umožňuje sledovanie pripojených používateľov v reálnom čase
-   - Cookie sa ukladá na 365 dní
 
 3. **Validácia PIN (pinValidated cookie):**
    - Po úspešnom zadaní PIN kódu sa uloží informácia o validácii
    - Nemusíte zadávať PIN pri každom návrate do aplikácie
-   - Cookie sa ukladá na 365 dní
 
-**Ako vymazať cookies:**
-- Ak chcete začať odznova (napríklad sa prihlásiť pod iným menom), vymažte cookies prehliadača pre túto stránku
-- Alebo v prehliadači prejdite do nastavení → Súkromie → Vymazať cookies
 
 ## Technické požiadavky
 
 - **Webový server** s podporou PHP (Apache, Nginx, alebo PHP built-in server)
 - **PHP 7.0 alebo vyššie**
 - **Prístup na zápis** do adresára `/data`
-- **Žiadne externé knižnice nie sú potrebné** - aplikácia používa iba čistý HTML, JavaScript a PHP bez závislostí na externých knižniciach (jQuery, React, atď.)
+- **Žiadne externé knižnice nie sú potrebné!** - aplikácia používa iba čistý HTML, JavaScript a PHP bez závislostí na externých knižniciach
 
 ## Inštalácia krok za krokom
 
@@ -69,15 +61,6 @@ Aplikácia využíva cookies pre uchovanie vašich preferencií a session inform
 3. Vyberte svoje meno zo zoznamu
 4. Systém je pripravený na použitie!
 
-### Alternatívne: Lokálny vývoj s PHP built-in serverom
-
-Pre lokálne testovanie:
-```bash
-php -S localhost:8080
-```
-
-Potom otvorte v prehliadači: `http://localhost:8080/index.html`
-
 ## Štruktúra súborov
 
 ```
@@ -99,7 +82,6 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 - Kliknutím na zelené voľné miesto v kalendári vytvoríte rezerváciu
 - Môžete rezervovať stôl pre seba alebo pre kolegu
 - Číslo stola sa automaticky zobrazí v kalendári
-- Modré ikony = vaše rezervácie, zelené čísla = voľné miesta
 
 ### 2. Kalendár
 - Prehľad rezervácií na celý mesiac
@@ -109,11 +91,9 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 
 ### 3. Nastavenia (vyžaduje admin heslo)
 - Správa členov tímu (pridávanie, úprava, mazanie)
-- Zmena štýlu zobrazenia mien (celé meno / iniciály)
 - Správa administrátorov
 - Zmena admin hesla
-- Export a import dát
-- Správa pripojených používateľov (odpojenie neaktívnych)
+- Správa pripojených používateľov (odpojenie neaktívnych - generovanie novej id namiesto uloženého v cookies)
 
 ### 4. História zmien (Audit Log)
 - Každá akcia je zaznamenaná s časovou pečiatkou
@@ -130,11 +110,6 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 - Dáta sú perzistentné - nestrácajú sa pri zatvorení prehliadača
 - Žiadna databáza nie je potrebná - všetko sa ukladá do JSON súborov
 
-### 6. Plán kancelárie
-- Vizuálny prehľad rozloženia stolov
-- Zobrazuje obsadenosť jednotlivých miest
-- Žltá farba = váš stôl, modrá = ostatní
-
 ## Ako používať aplikáciu - príklady
 
 ### Vytvorenie rezervácie
@@ -144,7 +119,7 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 4. Rezervácia sa automaticky uloží
 
 ### Zrušenie vlastnej rezervácie
-1. V kalendári kliknite na deň s vašou rezerváciou (modrá ikona)
+1. V kalendári kliknite na deň s vašou rezerváciou , "Zmena"
 2. Kliknite na tlačidlo "Zrušiť rezerváciu"
 3. Rezervácia sa okamžite odstráni
 
@@ -154,14 +129,7 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 3. Zadajte meno a priezvisko
 4. Kliknite "Uložiť nastavenia"
 
-### Zmena admin hesla
-1. Otvorte Nastavenia (vyžaduje admin heslo)
-2. V sekcii "Admin" kliknite "Zmeniť heslo"
-3. Zadajte nové heslo
-4. Heslo sa okamžite uloží
-
 ## API Endpoints (pre vývojárov)
-
 ### Získanie rozvrhu
 ```
 GET /api.php?action=getSchedule&yearMonth=YYYYMM
@@ -229,7 +197,7 @@ Táto aplikácia je **samostatná** a **nevyžaduje žiadne externé JavaScript 
 - ✅ Žiadny React, Vue alebo Angular
 - ✅ Žiadny Bootstrap alebo iné CSS frameworky
 - ✅ Žiadne NPM balíčky
-- ✅ Žiadne CDN závislosti
+- ✅ Žiadne závislosti
 
 Všetko je napísané v čistom (vanilla) HTML, CSS a JavaScripte. PHP súbor `api.php` tiež nepoužíva žiadne externé knižnice - len štandardné PHP funkcie.
 
@@ -251,4 +219,4 @@ Aplikácia by značne uľahčila prácu kancelárie 3.19, ktorá by mohla bez pr
 
 **Pripravila:** Eva Mészáros  
 **Určené pre:** IT oddelenie Wüstenrot na posúdenie a implementáciu  
-**Verzia:** 1.0
+**Verzia:** 202510
