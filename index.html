@@ -38,9 +38,14 @@
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
     .lock { font-size: 12px; margin-left: 4px; }
-    .layout { display:grid; grid-template-columns: minmax(0, 1fr) 420px; gap:12px; align-items:start; }
+    .layout { display:flex; gap:0; align-items:start; }
+    .layout-left { flex: 1; min-width: 0; padding-right: 6px; }
+    .layout-divider { width: 4px; background: var(--border); cursor: col-resize; position: relative; flex-shrink: 0; transition: background 0.15s ease; }
+    .layout-divider:hover { background: var(--accent); }
+    .layout-divider:active { background: var(--accent); }
+    .layout-right { width: 420px; flex-shrink: 0; padding-left: 6px; }
     .sidebar { position: sticky; top:72px; display: grid; gap:12px; }
-    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+    @media (max-width: 1100px) { .layout { flex-direction: column; } .layout-divider { display: none; } .layout-right { width: 100%; } .sidebar { position: static; } }
     .plan-wrap { padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
     .status { font-size:12px; }
@@ -134,7 +139,7 @@
 
   <main class="container">
     <div class="layout">
-      <div>
+      <div class="layout-left">
         <div id="today-card" class="card" style="margin-bottom:6px;"></div>
 
         <div class="row" style="margin-bottom:6px;">
@@ -162,7 +167,10 @@
         <div class="grid grid-7" id="calendar"></div>
       </div>
 
-      <aside class="sidebar">
+      <div class="layout-divider" id="layout-divider"></div>
+
+      <div class="layout-right">
+        <aside class="sidebar">
         <div class="plan-wrap" style="width:100%;">
           <div class="plan-title">
             <span>Rozloženie stolov</span>
@@ -224,6 +232,7 @@
           </div>
         </div>
       </aside>
+      </div>
     </div>
   </main>
 
@@ -265,12 +274,6 @@
         <button class="btn" id="close-settings">Zavrieť</button>
       </header>
       <div class="content" style="padding:12px;">
-        <div style="font-weight:600; margin-bottom:6px">Vlastník tohto počítača</div>
-        <select id="owner-name" style="width:260px">
-          <option value="">-- Vyberte vlastníka --</option>
-        </select>
-
-        <div style="height:12px"></div>
         <div style="font-weight:600; margin-bottom:6px">Štýl mien v kalendári</div>
         <label class="row"><input type="radio" name="labelstyle" id="style-surname" checked /> Priezvisko</label>
         <label class="row"><input type="radio" name="labelstyle" id="style-initials" /> Iniciály</label>
@@ -1580,7 +1583,6 @@
       }
       
       document.getElementById("settings-overlay").classList.add("show");
-      renderOwnerDropdown();
       document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
       document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
       renderTeamTable();
@@ -1629,8 +1631,6 @@
     };
     
     document.getElementById("save-settings").onclick=function(){
-      var ownerSelect = document.getElementById("owner-name");
-      settings.ownerName = ownerSelect.value;
       settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
       settings.team = team;
       saveSettings(function(){
@@ -1817,6 +1817,68 @@
 
     // init
     function initFocus() { ui.focusDate = new Date(); }
+    
+    // Resizable divider functionality
+    (function() {
+      var divider = document.getElementById('layout-divider');
+      var leftPanel = document.querySelector('.layout-left');
+      var rightPanel = document.querySelector('.layout-right');
+      var isDragging = false;
+      var startX = 0;
+      var startLeftWidth = 0;
+      var startRightWidth = 0;
+      
+      // Load saved sizes from localStorage
+      var savedLeftWidth = localStorage.getItem('layoutLeftWidth');
+      var savedRightWidth = localStorage.getItem('layoutRightWidth');
+      if (savedLeftWidth && savedRightWidth) {
+        leftPanel.style.flex = 'none';
+        leftPanel.style.width = savedLeftWidth;
+        rightPanel.style.width = savedRightWidth;
+      }
+      
+      divider.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        startX = e.clientX;
+        startLeftWidth = leftPanel.offsetWidth;
+        startRightWidth = rightPanel.offsetWidth;
+        
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        
+        e.preventDefault();
+      });
+      
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        
+        var deltaX = e.clientX - startX;
+        var newLeftWidth = startLeftWidth + deltaX;
+        var newRightWidth = startRightWidth - deltaX;
+        
+        // Min widths to prevent panels from becoming too small
+        var minLeftWidth = 400;
+        var minRightWidth = 320;
+        
+        if (newLeftWidth >= minLeftWidth && newRightWidth >= minRightWidth) {
+          leftPanel.style.flex = 'none';
+          leftPanel.style.width = newLeftWidth + 'px';
+          rightPanel.style.width = newRightWidth + 'px';
+        }
+      });
+      
+      document.addEventListener('mouseup', function() {
+        if (isDragging) {
+          isDragging = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          
+          // Save sizes to localStorage
+          localStorage.setItem('layoutLeftWidth', leftPanel.style.width);
+          localStorage.setItem('layoutRightWidth', rightPanel.style.width);
+        }
+      });
+    })();
     
     // Check if user name is in cookie, if not, ask for it from dropdown
     function initUserName() {
