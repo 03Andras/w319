@@ -38,13 +38,8 @@
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
     .lock { font-size: 12px; margin-left: 4px; }
-    .layout { display:grid; grid-template-columns: minmax(0, 1fr) 420px; gap:12px; align-items:start; }
-    .sidebar { position: sticky; top:72px; display: grid; gap:12px; transition: transform 0.3s ease; }
-    .sidebar.collapsed { transform: translateX(100%); position: fixed; right: 0; top: 72px; }
-    .sidebar-toggle { position: fixed; right: 12px; top: 100px; z-index: 20; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); transition: transform 0.3s ease; }
-    .sidebar-toggle:hover { background: #1d4ed8; }
-    .sidebar-toggle.sidebar-visible { transform: translateX(-430px); }
-    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; transform: none !important; } .sidebar-toggle { display: none; } }
+    .layout { display:grid; grid-template-columns: 1fr; gap:12px; align-items:start; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
     .plan-wrap { padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
     .status { font-size:12px; }
@@ -106,10 +101,74 @@
     <span id="notification-text"></span>
   </div>
 
-  <!-- Sidebar toggle button -->
-  <button id="sidebar-toggle" class="sidebar-toggle sidebar-visible" title="Prepnúť bočný panel">→</button>
-
   <main class="container">
+    <!-- Graphical layout - collapsible section above main layout -->
+    <div class="plan-wrap" style="width:100%; margin-bottom:12px;">
+      <div class="plan-title" style="justify-content:space-between;">
+        <div>
+          <span>Rozloženie stolov</span>
+          <span class="muted" id="plan-date"></span>
+        </div>
+        <button class="btn" id="toggle-plan">Skryť</button>
+      </div>
+      <div id="plan-content" style="display:block;">
+        <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
+          <defs>
+            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0ea5e9" flood-opacity=".10"/>
+            </filter>
+          </defs>
+          <!-- LEFT block -->
+          <rect class="desk" x="90" y="40" width="160" height="160" rx="12"/>
+          <rect class="desk-base" x="75" y="184" width="190" height="24" rx="8"/>
+          <!-- RIGHT column far to the right for large gap -->
+          <rect class="desk" x="400" y="28" width="60" height="200" rx="12"/>
+
+          <!-- Desk numbers -->
+          <text class="desk-num" x="140" y="75">1</text>
+          <text class="desk-num" x="200" y="75">2</text>
+          <text class="desk-num" x="430" y="65">3</text>
+          <text class="desk-num" x="140" y="140">4</text>
+          <text class="desk-num" x="200" y="140">5</text>
+          <text class="desk-num" x="430" y="130">6</text>
+          <text class="desk-num" x="430" y="195">7</text>
+
+          <!-- Chairs – symmetric -->
+          <circle id="s1" class="chair" cx="70" cy="75" r="16"></circle>
+          <text id="t1" class="chair-txt" x="70" y="75"></text>
+          <text id="l1" class="lock-icon" x="85" y="65"></text>
+
+          <circle id="s4" class="chair" cx="70" cy="140" r="16"></circle>
+          <text id="t4" class="chair-txt" x="70" y="140"></text>
+          <text id="l4" class="lock-icon" x="85" y="130"></text>
+
+          <circle id="s2" class="chair" cx="270" cy="75" r="16"></circle>
+          <text id="t2" class="chair-txt" x="270" y="75"></text>
+          <text id="l2" class="lock-icon" x="285" y="65"></text>
+
+          <circle id="s5" class="chair" cx="270" cy="140" r="16"></circle>
+          <text id="t5" class="chair-txt" x="270" y="140"></text>
+          <text id="l5" class="lock-icon" x="285" y="130"></text>
+
+          <circle id="s3" class="chair" cx="370" cy="65" r="16"></circle>
+          <text id="t3" class="chair-txt" x="370" y="65"></text>
+          <text id="l3" class="lock-icon" x="385" y="55"></text>
+
+          <circle id="s6" class="chair" cx="370" cy="130" r="16"></circle>
+          <text id="t6" class="chair-txt" x="370" y="130"></text>
+          <text id="l6" class="lock-icon" x="385" y="120"></text>
+
+          <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
+          <text id="t7" class="chair-txt" x="370" y="195"></text>
+          <text id="l7" class="lock-icon" x="385" y="185"></text>
+        </svg>
+
+        <div class="row" style="justify-content:flex-end; margin-top:10px;">
+          <button class="btn primary" id="reserve-btn">Rezervovať</button>
+        </div>
+      </div>
+    </div>
+
     <div class="layout">
       <div>
         <div id="today-card" class="card" style="margin-bottom:6px;"></div>
@@ -139,69 +198,6 @@
 
         <div class="grid grid-7" id="calendar"></div>
       </div>
-
-      <aside class="sidebar">
-        <div class="plan-wrap" style="width:100%;">
-          <div class="plan-title">
-            <span>Rozloženie stolov</span>
-            <span class="muted" id="plan-date"></span>
-          </div>
-          <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
-            <defs>
-              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0ea5e9" flood-opacity=".10"/>
-              </filter>
-            </defs>
-            <!-- LEFT block -->
-            <rect class="desk" x="90" y="40" width="160" height="160" rx="12"/>
-            <rect class="desk-base" x="75" y="184" width="190" height="24" rx="8"/>
-            <!-- RIGHT column far to the right for large gap -->
-            <rect class="desk" x="400" y="28" width="60" height="200" rx="12"/>
-
-            <!-- Desk numbers -->
-            <text class="desk-num" x="140" y="75">1</text>
-            <text class="desk-num" x="200" y="75">2</text>
-            <text class="desk-num" x="430" y="65">3</text>
-            <text class="desk-num" x="140" y="140">4</text>
-            <text class="desk-num" x="200" y="140">5</text>
-            <text class="desk-num" x="430" y="130">6</text>
-            <text class="desk-num" x="430" y="195">7</text>
-
-            <!-- Chairs – symmetric -->
-            <circle id="s1" class="chair" cx="70" cy="75" r="16"></circle>
-            <text id="t1" class="chair-txt" x="70" y="75"></text>
-            <text id="l1" class="lock-icon" x="85" y="65"></text>
-
-            <circle id="s4" class="chair" cx="70" cy="140" r="16"></circle>
-            <text id="t4" class="chair-txt" x="70" y="140"></text>
-            <text id="l4" class="lock-icon" x="85" y="130"></text>
-
-            <circle id="s2" class="chair" cx="270" cy="75" r="16"></circle>
-            <text id="t2" class="chair-txt" x="270" y="75"></text>
-            <text id="l2" class="lock-icon" x="285" y="65"></text>
-
-            <circle id="s5" class="chair" cx="270" cy="140" r="16"></circle>
-            <text id="t5" class="chair-txt" x="270" y="140"></text>
-            <text id="l5" class="lock-icon" x="285" y="130"></text>
-
-            <circle id="s3" class="chair" cx="370" cy="65" r="16"></circle>
-            <text id="t3" class="chair-txt" x="370" y="65"></text>
-            <text id="l3" class="lock-icon" x="385" y="55"></text>
-
-            <circle id="s6" class="chair" cx="370" cy="130" r="16"></circle>
-            <text id="t6" class="chair-txt" x="370" y="130"></text>
-            <text id="l6" class="lock-icon" x="385" y="120"></text>
-
-            <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
-            <text id="t7" class="chair-txt" x="370" y="195"></text>
-            <text id="l7" class="lock-icon" x="385" y="185"></text>
-          </svg>
-
-          <div class="row" style="justify-content:flex-end; margin-top:10px;">
-            <button class="btn primary" id="reserve-btn">Rezervovať</button>
-          </div>
-        </div>
-      </aside>
     </div>
   </main>
 
@@ -291,10 +287,17 @@
     function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
     
     // Notification helper
-    function showNotification(message, isError) {
+    function showNotification(message, isError, details) {
       var notif = document.getElementById("notification");
       var text = document.getElementById("notification-text");
-      text.textContent = message;
+      
+      var fullMessage = message;
+      if (details) {
+        if (details.date) fullMessage += " - " + details.date;
+        if (details.seat) fullMessage += " (Miesto: " + details.seat + ")";
+      }
+      
+      text.textContent = fullMessage;
       notif.classList.remove("error");
       if (isError) notif.classList.add("error");
       notif.classList.remove("hiding");
@@ -407,7 +410,7 @@
       return empty;
     }
 
-    function saveData(callback){ 
+    function saveData(callback, details){ 
       var yearMonth = getYearMonth(ui.year, ui.month);
       var dataToSave = {
         yearMonth: yearMonth,
@@ -422,13 +425,40 @@
       .then(function(res){ return res.json(); })
       .then(function(){ 
         scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
-        showNotification("✓ Úspešne rezervované!", false);
+        // Self-check: verify data was actually saved correctly
+        selfCheckData(yearMonth, function(verified) {
+          if (!verified) {
+            console.error('Self-check failed: Data verification did not match');
+          }
+        });
+        
+        // Show notification with details
+        if (details) {
+          var message = details.type === 'deletion' ? '✓ Úspešne zrušené!' : '✓ Úspešne rezervované!';
+          showNotification(message, false, details);
+        } else {
+          showNotification("✓ Úspešne rezervované!", false);
+        }
         if(callback) callback(); 
       })
       .catch(function(err){ 
         console.error('Error saving schedule:', err); 
         showNotification("✗ Chyba pri ukladaní!", true);
       });
+    }
+    
+    function selfCheckData(yearMonth, callback) {
+      // Verify that data was actually saved to JSON
+      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+        .then(function(res){ return res.json(); })
+        .then(function(data){ 
+          var isMatch = JSON.stringify(data) === JSON.stringify(schedule);
+          if(callback) callback(isMatch);
+        })
+        .catch(function(err){ 
+          console.error('Self-check error:', err);
+          if(callback) callback(false);
+        });
     }
     
     function loadData(year, month, callback){ 
@@ -454,6 +484,8 @@
     }
 
     function applyChanges(){ saveData(); render(); }
+    
+    function applyChangesWithDetails(details){ saveData(null, details); render(); }
 
     function allSameWeekdayDatesInMonth(baseDate){
       var y=baseDate.getFullYear(), m=baseDate.getMonth(), wd=baseDate.getDay();
@@ -480,7 +512,7 @@
       for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
       document.getElementById("year").value = ui.year;
 
-      // Names
+      // Names - only show names from settings (team list)
       var sel=document.getElementById("name"); sel.innerHTML="";
       var list=namesOrdered(); for(var j=0;j<list.length;j++){ var op=document.createElement("option"); op.value=list[j]; op.textContent=list[j]; sel.appendChild(op); }
       if(list.indexOf(ui.selectedName)===-1) ui.selectedName=list[0]; sel.value=ui.selectedName;
@@ -608,7 +640,13 @@
                   for(var key in schedule) next[key] = schedule[key]; 
                   next[ds] = s; 
                   schedule = next;
-                  applyChanges();
+                  // Pass details for notification
+                  var dt = parseDateStr(ds);
+                  applyChangesWithDetails({
+                    type: 'reservation',
+                    date: dt.toLocaleDateString("sk-SK"),
+                    seat: seatIdx
+                  });
                 };
               })(dStr, idx);
             }
@@ -674,7 +712,11 @@
           if(res==="conflict"){
             alert("Toto miesto je už obsadené, nie je možné rezervovať.");
           } else {
-            applyChanges();
+            applyChangesWithDetails({
+              type: 'reservation',
+              date: dt.toLocaleDateString("sk-SK"),
+              seat: seat
+            });
           }
           return;
         }
@@ -713,17 +755,29 @@
         if(!name){
           btnR.textContent="Obsadiť";
           (function(s){ btnR.addEventListener("click", function(){ reserve(s); openModal(dateStr); }); })(seat);
-        } else if(isMine){
-          btnR.textContent="Upraviť/PRESUNÚŤ";
-          (function(s){ btnR.addEventListener("click", function(){ reserve(s); openModal(dateStr); }); })(seat);
-        } else {
+          right.appendChild(btnR);
+        } else if(!isMine){
           btnR.textContent="Obsadené 🔒";
           (function(){ btnR.addEventListener("click", function(){ alert("Toto miesto je už obsadené, nie je možné rezervovať."); }); })();
+          right.appendChild(btnR);
         }
-        right.appendChild(btnR);
         if(isMine){
           var btnC=document.createElement("button"); btnC.className="btn"; btnC.textContent="Zrušiť";
-          (function(s){ btnC.addEventListener("click", function(){ var ss=getDaySeats(dateStr); ss[s]=""; var next={}; for(var key in schedule) next[key]=schedule[key]; next[dateStr]=ss; schedule=next; applyChanges(); openModal(dateStr); }); })(seat);
+          (function(s){ btnC.addEventListener("click", function(){ 
+            var ss=getDaySeats(dateStr); 
+            ss[s]=""; 
+            var next={}; 
+            for(var key in schedule) next[key]=schedule[key]; 
+            next[dateStr]=ss; 
+            schedule=next; 
+            var dt = parseDateStr(dateStr);
+            applyChangesWithDetails({
+              type: 'deletion',
+              date: dt.toLocaleDateString("sk-SK"),
+              seat: s
+            }); 
+            openModal(dateStr); 
+          }); })(seat);
           right.appendChild(btnC);
         }
         row.appendChild(left); row.appendChild(right); seatsDiv.appendChild(row);
@@ -931,21 +985,17 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Sidebar toggle
-    document.getElementById("sidebar-toggle").onclick=function(){
-      var sidebar = document.querySelector(".sidebar");
-      var toggle = document.getElementById("sidebar-toggle");
+    // Plan toggle
+    document.getElementById("toggle-plan").onclick=function(){
+      var content = document.getElementById("plan-content");
+      var btn = document.getElementById("toggle-plan");
       
-      if(sidebar.classList.contains("collapsed")) {
-        sidebar.classList.remove("collapsed");
-        toggle.classList.add("sidebar-visible");
-        toggle.textContent = "→";
-        toggle.title = "Skryť bočný panel";
+      if(content.style.display === "none") {
+        content.style.display = "block";
+        btn.textContent = "Skryť";
       } else {
-        sidebar.classList.add("collapsed");
-        toggle.classList.remove("sidebar-visible");
-        toggle.textContent = "←";
-        toggle.title = "Zobraziť bočný panel";
+        content.style.display = "none";
+        btn.textContent = "Zobraziť";
       }
     };
 
