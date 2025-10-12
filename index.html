@@ -9,7 +9,7 @@
     :root { --bg:#f6f8fb; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --shadow: 0 10px 30px rgba(2,6,23,.06); --holiday:#f3f4f6; --holiday-text:#9ca3af; --free:#ecfdf5; --free-border:#86efac; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; overflow-x:hidden; }
-    .container { max-width: 100%; margin: 0 auto; padding: 16px; } /* širšie, aby sa zmestilo 7×180px + medzery */
+    .container { max-width: 100%; margin: 0 auto; padding: 16px; }
     header.sticky { position: sticky; top:0; background: rgba(255,255,255,.9); border-bottom:1px solid var(--border); z-index:10; backdrop-filter: blur(6px); }
     h1 { font-size: 20px; margin: 0; }
     .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
@@ -21,7 +21,7 @@
     .muted { color: var(--muted); }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
     .grid { display:grid; gap:6px; }
-    .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); } /* širšie stĺpce */
+    .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); }
     .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease; display:flex; flex-direction:column; }
     .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
     .day:focus { outline: none; }
@@ -36,7 +36,7 @@
     .seatline.free:hover { background: #d1fae5; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
-    .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
+    .name { flex:1; min-width:0; white-space:nowrap; }
     .lock { font-size: 12px; margin-left: 4px; }
     .layout { display:flex; gap:0; align-items:start; }
     .layout-left { flex: 1; min-width: 0; padding-right: 6px; }
@@ -399,6 +399,7 @@
 
   <script>
     var DEFAULT_SEATS = 7;
+    var DEBUG_MODE = false;
     var TEAM_DEFAULT = [
       "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
       "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
@@ -406,6 +407,29 @@
     ];
 
     function sortBySurname(arr){ return arr.slice(0).sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); }); }
+    
+    function logError(msg, err) {
+      if (DEBUG_MODE && err) console.error(msg, err);
+      else if (DEBUG_MODE) console.error(msg);
+    }
+    
+    function apiGet(action, params) {
+      var url = 'api.php?action=' + action;
+      if (params) {
+        for (var key in params) {
+          url += '&' + key + '=' + encodeURIComponent(params[key]);
+        }
+      }
+      return fetch(url).then(function(res){ return res.json(); });
+    }
+    
+    function apiPost(action, data) {
+      return fetch('api.php?action=' + action, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      }).then(function(res){ return res.json(); });
+    }
     
     // Notification helper
     function showNotification(message, isError, details) {
@@ -433,8 +457,7 @@
     
     // Server API functions
     function loadSettings(callback){ 
-      fetch('api.php?action=getSettings')
-        .then(function(res){ return res.json(); })
+      apiGet('getSettings')
         .then(function(data){ callback(data); })
         .catch(function(){ callback({ ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) }); });
     }
@@ -442,21 +465,16 @@
     function saveSettings(callback){ 
       var dataToSave = Object.assign({}, settings);
       dataToSave.user = myCurrentName();
-      fetch('api.php?action=saveSettings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
-      })
-      .then(function(res){ return res.json(); })
+      apiPost('saveSettings', dataToSave)
       .then(function(){ if(callback) callback(); })
-      .catch(function(err){ console.error('Error saving settings:', err); });
+      .catch(function(err){ logError('Error saving settings:', err); });
     }
     
     function loadAuditLog(callback) {
-      fetch('api.php?action=getAuditLog')
-        .then(function(res){ return res.json(); })
+      apiGet('getAuditLog')
         .then(function(data){ callback(data); })
         .catch(function(){ callback([]); });
+    }
     }
 
     var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
@@ -509,29 +527,22 @@
     // Register session with server
     function registerSession(userName) {
       var sessionId = getSessionId();
-      fetch('api.php?action=registerSession', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({userName: userName, sessionId: sessionId})
-      })
-      .then(function(res){ return res.json(); })
-      .catch(function(err){ console.error('Error registering session:', err); });
+      apiPost('registerSession', {userName: userName, sessionId: sessionId})
+      .catch(function(err){ logError('Error registering session:', err); });
     }
 
     // Check if session is still active
     function checkSession() {
       var sessionId = getSessionId();
-      fetch('api.php?action=checkSession&sessionId=' + encodeURIComponent(sessionId))
-        .then(function(res){ return res.json(); })
+      apiGet('checkSession', {sessionId: sessionId})
         .then(function(data){ 
           if (!data.active) {
-            // Session was disconnected, clear cookies and reload
             eraseCookie('userName');
             eraseCookie('sessionId');
             location.reload();
           }
         })
-        .catch(function(err){ console.error('Error checking session:', err); });
+        .catch(function(err){ logError('Error checking session:', err); });
     }
 
     function getYearMonth(year, month) {
@@ -634,22 +645,15 @@
         user: myCurrentName(),
         changeDetails: details || {}
       };
-      fetch('api.php?action=saveSchedule', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
-      })
-      .then(function(res){ return res.json(); })
+      apiPost('saveSchedule', dataToSave)
       .then(function(){ 
         scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
-        // Self-check: verify data was actually saved correctly
         selfCheckData(yearMonth, function(verified) {
           if (!verified) {
-            console.error('Self-check failed: Data verification did not match');
+            logError('Self-check failed: Data verification did not match');
           }
         });
         
-        // Show notification with details
         if (details) {
           var message = details.type === 'deletion' ? '✓ Úspešne zrušené!' : '✓ Úspešne rezervované!';
           showNotification(message, false, details);
@@ -659,21 +663,19 @@
         if(callback) callback(); 
       })
       .catch(function(err){ 
-        console.error('Error saving schedule:', err); 
+        logError('Error saving schedule:', err); 
         showNotification("✗ Chyba pri ukladaní!", true);
       });
     }
     
     function selfCheckData(yearMonth, callback) {
-      // Verify that data was actually saved to JSON
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){ 
           var isMatch = JSON.stringify(data) === JSON.stringify(schedule);
           if(callback) callback(isMatch);
         })
         .catch(function(err){ 
-          console.error('Self-check error:', err);
+          logError('Self-check error:', err);
           if(callback) callback(false);
         });
     }
@@ -686,8 +688,7 @@
         return;
       }
       
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){ 
           schedule = data || {}; 
           scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
@@ -729,13 +730,11 @@
       for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
       document.getElementById("year").value = ui.year;
 
-      // Names - only show names from settings (team list)
       var sel=document.getElementById("name"); sel.innerHTML="";
       var list=namesOrdered(); for(var j=0;j<list.length;j++){ var op=document.createElement("option"); op.value=list[j]; op.textContent=list[j]; sel.appendChild(op); }
       if(list.indexOf(ui.selectedName)===-1) ui.selectedName=list[0]; sel.value=ui.selectedName;
       document.getElementById("custom-name").value = ui.customName;
       
-      // Hide/show name selection based on cookie
       var storedName = getCookie('userName');
       var nameRow = document.getElementById("name").parentElement;
       var customRow = document.getElementById("custom-name").parentElement;
@@ -747,7 +746,6 @@
         customRow.style.display = "flex";
       }
       
-      // Display current user name in header
       var currentUserNameElement = document.getElementById("current-user-name");
       var currentUserName = myCurrentName();
       if (currentUserName && currentUserName.trim()) {
@@ -757,13 +755,11 @@
         currentUserNameElement.style.display = "none";
       }
 
-      // Today card
       var todayStr=fmtDate(new Date()); 
       var todaySeats=getDaySeats(todayStr); 
       var todayList=[];
       for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
       
-      // Tomorrow
       var tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       var tomorrowStr = fmtDate(tomorrow);
@@ -771,13 +767,11 @@
       var tomorrowList = [];
       for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
       
-      // Sort both lists alphabetically by surname
       todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       
       var card=document.getElementById("today-card"); card.innerHTML="";
       
-      // Today section
       var todayTitle=document.createElement("div"); 
       todayTitle.style.fontWeight="600"; 
       todayTitle.style.fontSize="14px"; 
@@ -798,7 +792,6 @@
         card.appendChild(empty);
       }
       
-      // Tomorrow section
       var tomorrowTitle=document.createElement("div"); 
       tomorrowTitle.style.fontWeight="600"; 
       tomorrowTitle.style.fontSize="14px"; 
@@ -820,7 +813,6 @@
         card.appendChild(emptyTomorrow);
       }
 
-      // Calendar
       var cal=document.getElementById("calendar"); cal.innerHTML="";
       var first=firstDayOfMonth(ui.year, ui.month); var start=(first.getDay()+6)%7; var total=daysInMonth(ui.year, ui.month);
       for(var i=0;i<start;i++){ var pad=document.createElement("div"); cal.appendChild(pad); }
@@ -1283,18 +1275,13 @@
           btnDisconnect.onclick = function() {
             if(!confirm("Odpojiť používateľa '" + name + "' z počítača?\nBude požiadaný o opätovné prihlásenie.")) return;
             
-            fetch('api.php?action=disconnectUser', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName()})
-            })
-            .then(function(res){ return res.json(); })
+            apiPost('disconnectUser', {userToDisconnect: name, adminUser: myCurrentName()})
             .then(function(data){ 
               var count = data.sessionsDisconnected || 0;
               showNotification("✓ Odpojených " + count + " sedení používateľa " + name, false);
-              renderTeamTable(); // Refresh to show updated sessions
+              renderTeamTable();
             })
-            .catch(function(err){ console.error('Error disconnecting user:', err); });
+            .catch(function(err){ logError('Error disconnecting user:', err); });
           };
           tdActions.appendChild(btnDisconnect);
         }
@@ -1387,8 +1374,7 @@
     }
 
     function renderSessions() {
-      fetch('api.php?action=getSessions')
-        .then(function(res){ return res.json(); })
+      apiGet('getSessions')
         .then(function(sessions) {
           var tbody = document.getElementById("sessions-table-body");
           tbody.innerHTML = "";
@@ -1447,7 +1433,7 @@
           });
         })
         .catch(function(err) {
-          console.error('Error loading sessions:', err);
+          logError('Error loading sessions:', err);
         });
     }
 
@@ -1485,14 +1471,9 @@
       
       settings.adminPassword = newPassword;
       
-      // Log password change
-      fetch('api.php?action=saveSettings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          user: myCurrentName(),
-          action: 'password_change'
-        })
+      apiPost('saveSettings', {
+        user: myCurrentName(),
+        action: 'password_change'
       });
       
       showNotification("✓ Admin heslo bolo zmenené!", false);
@@ -1568,9 +1549,7 @@
       var currentUser = myCurrentName();
       var userIsAdmin = isAdmin();
       
-      // Always require password if there's an admin configured
       if(hasAdmin){
-        // Prompt for password
         var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
         if(password === "Cica432"){
           // Super admin password - allow everything
@@ -1602,7 +1581,6 @@
         teamSectionHeader.style.display = "block";
         renderDataFilesList();
         
-        // Show admin password by default for admins
         passwordInput.type = "text";
         passwordInput.value = settings.adminPassword || "Jablko123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
@@ -1644,8 +1622,7 @@
     
     // Data Management handlers
     document.getElementById("export-settings-btn").onclick=function(){
-      fetch('api.php?action=getSettings')
-        .then(function(res){ return res.json(); })
+      apiGet('getSettings')
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
           var blob = new Blob([dataStr], {type: 'application/json'});
@@ -1659,15 +1636,13 @@
         })
         .catch(function(err){ 
           showNotification("✗ Chyba pri exporte nastavení", true);
-          console.error(err);
+          logError(err);
         });
     };
     
     document.getElementById("export-schedule-btn").onclick=function(){
-      // Export all schedule files as a single JSON
       var yearMonth = getYearMonth(ui.year, ui.month);
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
           var blob = new Blob([dataStr], {type: 'application/json'});
@@ -1681,7 +1656,7 @@
         })
         .catch(function(err){ 
           showNotification("✗ Chyba pri exporte rozpisu", true);
-          console.error(err);
+          logError(err);
         });
     };
     
@@ -1722,16 +1697,10 @@
             return;
           }
           
-          // Save imported settings
-          fetch('api.php?action=saveSettings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              user: myCurrentName(),
-              ...importedSettings
-            })
+          apiPost('saveSettings', {
+            user: myCurrentName(),
+            ...importedSettings
           })
-          .then(function(res){ return res.json(); })
           .then(function(response){
             if (response.success) {
               settings = importedSettings;
@@ -1747,7 +1716,7 @@
           })
           .catch(function(err){
             showNotification("✗ Chyba pri importe nastavení", true);
-            console.error(err);
+            logError(err);
           });
         } catch (err) {
           alert("Chyba pri čítaní súboru: " + err.message);
@@ -1779,13 +1748,11 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Real-time polling for concurrent changes
     function startPolling() {
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(function() {
         var yearMonth = getYearMonth(ui.year, ui.month);
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-          .then(function(res){ return res.json(); })
+        apiGet('getSchedule', {yearMonth: yearMonth})
           .then(function(data){ 
             var changed = JSON.stringify(data) !== JSON.stringify(schedule);
             if (changed) {
@@ -1795,11 +1762,10 @@
             }
             updateLastUpdateTime();
           })
-          .catch(function(err){ console.error('Polling error:', err); });
+          .catch(function(err){ logError('Polling error:', err); });
         
-        // Check session status
         checkSession();
-      }, 4000); // Poll every 4 seconds
+      }, 4000);
     }
     
     // Update last update timestamp in header
@@ -1955,14 +1921,12 @@
   <!-- PIN Code Validation Script -->
   <script>
     (function() {
-      var correctPin = "147258369";
       var pinOverlay = document.getElementById("pin-overlay");
       var pinInput = document.getElementById("pin-input");
       var pinSubmit = document.getElementById("pin-submit");
       var pinError = document.getElementById("pin-error");
       var mainContent = document.getElementById("main-content");
       
-      // Check if user has already entered correct PIN (session storage)
       if (sessionStorage.getItem('pinValidated') === 'true') {
         pinOverlay.classList.add('hidden');
         mainContent.classList.add('visible');
@@ -1970,18 +1934,30 @@
       
       function validatePin() {
         var enteredPin = pinInput.value;
-        if (enteredPin === correctPin) {
-          // Correct PIN
-          sessionStorage.setItem('pinValidated', 'true');
-          pinOverlay.classList.add('hidden');
-          mainContent.classList.add('visible');
-          pinError.classList.remove('show');
-        } else {
-          // Incorrect PIN
+        
+        fetch('api.php?action=validatePin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({pin: enteredPin})
+        })
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data.valid) {
+            sessionStorage.setItem('pinValidated', 'true');
+            pinOverlay.classList.add('hidden');
+            mainContent.classList.add('visible');
+            pinError.classList.remove('show');
+          } else {
+            pinError.classList.add('show');
+            pinInput.value = '';
+            pinInput.focus();
+          }
+        })
+        .catch(function(){
           pinError.classList.add('show');
           pinInput.value = '';
           pinInput.focus();
-        }
+        });
       }
       
       pinSubmit.addEventListener('click', validatePin);
@@ -1991,7 +1967,6 @@
         }
       });
       
-      // Focus on input when page loads
       pinInput.focus();
     })();
   </script>

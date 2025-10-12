@@ -20,8 +20,9 @@ if (!file_exists($settingsFile)) {
         'ownerName' => '',
         'labelStyle' => 'surname',
         'adminUser' => '',
-        'adminUsers' => ["Eva Mészáros"],
+        'adminUsers' => [],
         'adminPassword' => 'Jablko123',
+        'accessPin' => '147258369',
         'connectedUsers' => [],
         'team' => [
             "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
@@ -61,24 +62,23 @@ function addAuditLog($user, $action, $details = []) {
     file_put_contents($auditLogFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
-// Helper function to get client IP address
 function getClientIP() {
-    $ipaddress = '';
-    if (isset($_SERVER['HTTP_CLIENT_IP']))
-        $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
-    else if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))
-        $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    else if(isset($_SERVER['HTTP_X_FORWARDED']))
-        $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
-    else if(isset($_SERVER['HTTP_FORWARDED_FOR']))
-        $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
-    else if(isset($_SERVER['HTTP_FORWARDED']))
-        $ipaddress = $_SERVER['HTTP_FORWARDED'];
-    else if(isset($_SERVER['REMOTE_ADDR']))
-        $ipaddress = $_SERVER['REMOTE_ADDR'];
-    else
-        $ipaddress = 'UNKNOWN';
-    return $ipaddress;
+    $headers = [
+        'HTTP_CLIENT_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'HTTP_X_FORWARDED',
+        'HTTP_FORWARDED_FOR',
+        'HTTP_FORWARDED',
+        'REMOTE_ADDR'
+    ];
+    
+    foreach ($headers as $header) {
+        if (isset($_SERVER[$header])) {
+            return $_SERVER[$header];
+        }
+    }
+    
+    return 'UNKNOWN';
 }
 
 // Helper function to register a session
@@ -304,6 +304,25 @@ switch ($action) {
         });
         
         echo json_encode(array_values($filteredSessions));
+        break;
+    
+    case 'validatePin':
+        $input = file_get_contents('php://input');
+        $decoded = json_decode($input, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $enteredPin = $decoded['pin'] ?? '';
+            $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
+            $correctPin = $settings['accessPin'] ?? '147258369';
+            
+            if ($enteredPin === $correctPin) {
+                echo json_encode(['valid' => true]);
+            } else {
+                echo json_encode(['valid' => false]);
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid JSON']);
+        }
         break;
     
     default:
