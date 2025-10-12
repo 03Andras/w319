@@ -26,6 +26,9 @@
     .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
     .day:focus { outline: none; }
     .day.weekend, .day.holiday { background: var(--holiday); color: var(--holiday-text); }
+    .day.past { background: var(--holiday); color: var(--holiday-text); }
+    .day.past .seatline.free { background: transparent; cursor: default; }
+    .day.past .seatline.free:hover { background: transparent; }
     .day.today { box-shadow: 0 0 0 2px var(--accent) inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
@@ -854,7 +857,9 @@
 
         var cell=document.createElement("div"); cell.className="day"; cell.setAttribute("role","button"); cell.tabIndex=0;
         var nonWork = isNonWorking(dt);
+        var isPast = isPastDate(dStr);
         if(nonWork){ cell.classList.add("holiday"); cell.classList.add("disabled"); }
+        if(isPast && !nonWork){ cell.classList.add("past"); cell.classList.add("disabled"); }
 
         if([6,0].indexOf(dt.getDay())!==-1) cell.classList.add("weekend");
         if(dStr===fmtDate(new Date())) cell.classList.add("today");
@@ -1381,7 +1386,7 @@
         
         logDiv.innerHTML = "";
         var userIsAdmin = isAdmin();
-        logs.reverse().slice(0, 100).forEach(function(log) {
+        logs.reverse().slice(0, 500).forEach(function(log) {
           // Filter out user_login for non-admin users
           if (!userIsAdmin && log.action === 'user_login') {
             return; // Skip this log entry
@@ -1650,10 +1655,10 @@
         teamSectionHeader.style.display = "block";
         renderDataFilesList();
         
-        // Show admin password by default for admins
-        passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "Jablko123";
-        document.getElementById("show-admin-password").textContent = "Skryť heslo";
+        // Hide admin password by default
+        passwordInput.type = "password";
+        passwordInput.value = "";
+        document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
       } else {
         adminMgmt.style.display = "none";
         dataMgmt.style.display = "none";
