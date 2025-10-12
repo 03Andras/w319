@@ -9,7 +9,7 @@
     :root { --bg:#f6f8fb; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --shadow: 0 10px 30px rgba(2,6,23,.06); --holiday:#f3f4f6; --holiday-text:#9ca3af; --free:#ecfdf5; --free-border:#86efac; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; overflow-x:hidden; }
-    .container { max-width: 100%; margin: 0 auto; padding: 16px; } /* širšie, aby sa zmestilo 7×180px + medzery */
+    .container { max-width: 100%; margin: 0 auto; padding: 16px; }
     header.sticky { position: sticky; top:0; background: rgba(255,255,255,.9); border-bottom:1px solid var(--border); z-index:10; backdrop-filter: blur(6px); }
     h1 { font-size: 20px; margin: 0; }
     .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
@@ -21,7 +21,7 @@
     .muted { color: var(--muted); }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
     .grid { display:grid; gap:6px; }
-    .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); } /* širšie stĺpce */
+    .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); }
     .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease; display:flex; flex-direction:column; }
     .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
     .day:focus { outline: none; }
@@ -36,7 +36,7 @@
     .seatline.free:hover { background: #d1fae5; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
-    .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
+    .name { flex:1; min-width:0; white-space:nowrap; }
     .lock { font-size: 12px; margin-left: 4px; }
     .layout { display:flex; gap:0; align-items:start; }
     .layout-left { flex: 1; min-width: 0; padding-right: 6px; }
@@ -730,13 +730,11 @@
       for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
       document.getElementById("year").value = ui.year;
 
-      // Names - only show names from settings (team list)
       var sel=document.getElementById("name"); sel.innerHTML="";
       var list=namesOrdered(); for(var j=0;j<list.length;j++){ var op=document.createElement("option"); op.value=list[j]; op.textContent=list[j]; sel.appendChild(op); }
       if(list.indexOf(ui.selectedName)===-1) ui.selectedName=list[0]; sel.value=ui.selectedName;
       document.getElementById("custom-name").value = ui.customName;
       
-      // Hide/show name selection based on cookie
       var storedName = getCookie('userName');
       var nameRow = document.getElementById("name").parentElement;
       var customRow = document.getElementById("custom-name").parentElement;
@@ -748,7 +746,6 @@
         customRow.style.display = "flex";
       }
       
-      // Display current user name in header
       var currentUserNameElement = document.getElementById("current-user-name");
       var currentUserName = myCurrentName();
       if (currentUserName && currentUserName.trim()) {
@@ -758,13 +755,11 @@
         currentUserNameElement.style.display = "none";
       }
 
-      // Today card
       var todayStr=fmtDate(new Date()); 
       var todaySeats=getDaySeats(todayStr); 
       var todayList=[];
       for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
       
-      // Tomorrow
       var tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       var tomorrowStr = fmtDate(tomorrow);
@@ -772,13 +767,11 @@
       var tomorrowList = [];
       for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
       
-      // Sort both lists alphabetically by surname
       todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       
       var card=document.getElementById("today-card"); card.innerHTML="";
       
-      // Today section
       var todayTitle=document.createElement("div"); 
       todayTitle.style.fontWeight="600"; 
       todayTitle.style.fontSize="14px"; 
@@ -799,7 +792,6 @@
         card.appendChild(empty);
       }
       
-      // Tomorrow section
       var tomorrowTitle=document.createElement("div"); 
       tomorrowTitle.style.fontWeight="600"; 
       tomorrowTitle.style.fontSize="14px"; 
@@ -821,7 +813,6 @@
         card.appendChild(emptyTomorrow);
       }
 
-      // Calendar
       var cal=document.getElementById("calendar"); cal.innerHTML="";
       var first=firstDayOfMonth(ui.year, ui.month); var start=(first.getDay()+6)%7; var total=daysInMonth(ui.year, ui.month);
       for(var i=0;i<start;i++){ var pad=document.createElement("div"); cal.appendChild(pad); }
