@@ -413,6 +413,24 @@
       else if (DEBUG_MODE) console.error(msg);
     }
     
+    function apiGet(action, params) {
+      var url = 'api.php?action=' + action;
+      if (params) {
+        for (var key in params) {
+          url += '&' + key + '=' + encodeURIComponent(params[key]);
+        }
+      }
+      return fetch(url).then(function(res){ return res.json(); });
+    }
+    
+    function apiPost(action, data) {
+      return fetch('api.php?action=' + action, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      }).then(function(res){ return res.json(); });
+    }
+    
     // Notification helper
     function showNotification(message, isError, details) {
       var notif = document.getElementById("notification");
@@ -439,8 +457,7 @@
     
     // Server API functions
     function loadSettings(callback){ 
-      fetch('api.php?action=getSettings')
-        .then(function(res){ return res.json(); })
+      apiGet('getSettings')
         .then(function(data){ callback(data); })
         .catch(function(){ callback({ ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) }); });
     }
@@ -448,21 +465,16 @@
     function saveSettings(callback){ 
       var dataToSave = Object.assign({}, settings);
       dataToSave.user = myCurrentName();
-      fetch('api.php?action=saveSettings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
-      })
-      .then(function(res){ return res.json(); })
+      apiPost('saveSettings', dataToSave)
       .then(function(){ if(callback) callback(); })
       .catch(function(err){ logError('Error saving settings:', err); });
     }
     
     function loadAuditLog(callback) {
-      fetch('api.php?action=getAuditLog')
-        .then(function(res){ return res.json(); })
+      apiGet('getAuditLog')
         .then(function(data){ callback(data); })
         .catch(function(){ callback([]); });
+    }
     }
 
     var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"admin123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
@@ -515,23 +527,16 @@
     // Register session with server
     function registerSession(userName) {
       var sessionId = getSessionId();
-      fetch('api.php?action=registerSession', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({userName: userName, sessionId: sessionId})
-      })
-      .then(function(res){ return res.json(); })
+      apiPost('registerSession', {userName: userName, sessionId: sessionId})
       .catch(function(err){ logError('Error registering session:', err); });
     }
 
     // Check if session is still active
     function checkSession() {
       var sessionId = getSessionId();
-      fetch('api.php?action=checkSession&sessionId=' + encodeURIComponent(sessionId))
-        .then(function(res){ return res.json(); })
+      apiGet('checkSession', {sessionId: sessionId})
         .then(function(data){ 
           if (!data.active) {
-            // Session was disconnected, clear cookies and reload
             eraseCookie('userName');
             eraseCookie('sessionId');
             location.reload();
@@ -640,12 +645,7 @@
         user: myCurrentName(),
         changeDetails: details || {}
       };
-      fetch('api.php?action=saveSchedule', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
-      })
-      .then(function(res){ return res.json(); })
+      apiPost('saveSchedule', dataToSave)
       .then(function(){ 
         scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
         selfCheckData(yearMonth, function(verified) {
@@ -669,9 +669,7 @@
     }
     
     function selfCheckData(yearMonth, callback) {
-      // Verify that data was actually saved to JSON
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){ 
           var isMatch = JSON.stringify(data) === JSON.stringify(schedule);
           if(callback) callback(isMatch);
@@ -690,8 +688,7 @@
         return;
       }
       
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){ 
           schedule = data || {}; 
           scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
@@ -1287,12 +1284,7 @@
           btnDisconnect.onclick = function() {
             if(!confirm("Odpojiť používateľa '" + name + "' z počítača?\nBude požiadaný o opätovné prihlásenie.")) return;
             
-            fetch('api.php?action=disconnectUser', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName()})
-            })
-            .then(function(res){ return res.json(); })
+            apiPost('disconnectUser', {userToDisconnect: name, adminUser: myCurrentName()})
             .then(function(data){ 
               var count = data.sessionsDisconnected || 0;
               showNotification("✓ Odpojených " + count + " sedení používateľa " + name, false);
@@ -1391,8 +1383,7 @@
     }
 
     function renderSessions() {
-      fetch('api.php?action=getSessions')
-        .then(function(res){ return res.json(); })
+      apiGet('getSessions')
         .then(function(sessions) {
           var tbody = document.getElementById("sessions-table-body");
           tbody.innerHTML = "";
@@ -1489,14 +1480,9 @@
       
       settings.adminPassword = newPassword;
       
-      // Log password change
-      fetch('api.php?action=saveSettings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          user: myCurrentName(),
-          action: 'password_change'
-        })
+      apiPost('saveSettings', {
+        user: myCurrentName(),
+        action: 'password_change'
       });
       
       showNotification("✓ Admin heslo bolo zmenené!", false);
@@ -1641,8 +1627,7 @@
     
     // Data Management handlers
     document.getElementById("export-settings-btn").onclick=function(){
-      fetch('api.php?action=getSettings')
-        .then(function(res){ return res.json(); })
+      apiGet('getSettings')
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
           var blob = new Blob([dataStr], {type: 'application/json'});
@@ -1661,10 +1646,8 @@
     };
     
     document.getElementById("export-schedule-btn").onclick=function(){
-      // Export all schedule files as a single JSON
       var yearMonth = getYearMonth(ui.year, ui.month);
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-        .then(function(res){ return res.json(); })
+      apiGet('getSchedule', {yearMonth: yearMonth})
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
           var blob = new Blob([dataStr], {type: 'application/json'});
@@ -1719,16 +1702,10 @@
             return;
           }
           
-          // Save imported settings
-          fetch('api.php?action=saveSettings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              user: myCurrentName(),
-              ...importedSettings
-            })
+          apiPost('saveSettings', {
+            user: myCurrentName(),
+            ...importedSettings
           })
-          .then(function(res){ return res.json(); })
           .then(function(response){
             if (response.success) {
               settings = importedSettings;
@@ -1776,13 +1753,11 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Real-time polling for concurrent changes
     function startPolling() {
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(function() {
         var yearMonth = getYearMonth(ui.year, ui.month);
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
-          .then(function(res){ return res.json(); })
+        apiGet('getSchedule', {yearMonth: yearMonth})
           .then(function(data){ 
             var changed = JSON.stringify(data) !== JSON.stringify(schedule);
             if (changed) {
