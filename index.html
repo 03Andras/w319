@@ -78,12 +78,48 @@
     .team-table th { font-weight: 600; background: var(--bg); }
     .team-table tr:hover { background: #f9fafb; }
     .team-table button { padding: 4px 8px; font-size: 12px; }
-    /* Slide-in panel for table layout */
-    .slide-panel { position: fixed; top: 80px; right: -600px; width: 580px; max-width: 90vw; height: calc(100vh - 100px); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 16px 0 0 16px; box-shadow: -5px 0 30px rgba(2,6,23,.15); z-index: 40; transition: right 0.3s ease; overflow-y: auto; }
-    .slide-panel.open { right: 0; }
-    .slide-panel-toggle { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 12px 0 0 12px; padding: 12px 8px; cursor: pointer; box-shadow: -3px 0 10px rgba(2,6,23,.1); z-index: 41; transition: right 0.3s ease; }
-    .slide-panel-toggle.panel-open { right: 580px; }
-    @media (max-width: 768px) { .slide-panel { width: 90vw; right: -90vw; } .slide-panel-toggle.panel-open { right: 90vw; } }
+    /* Floating panel for table layout */
+    .floating-panel { 
+      position: fixed; 
+      top: 80px; 
+      right: 20px; 
+      width: 400px; 
+      height: 58px; /* Default height same as header bar */
+      background: #fff; 
+      border: 1px solid var(--border); 
+      border-radius: 12px; 
+      box-shadow: 0 4px 20px rgba(2,6,23,.15); 
+      z-index: 40; 
+      overflow: hidden;
+      resize: both; /* Make it resizable */
+      min-width: 200px;
+      min-height: 50px;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+    .floating-panel-header {
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      cursor: move; /* Indicate it's draggable */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 13px;
+      user-select: none;
+    }
+    .floating-panel-content {
+      padding: 12px;
+      overflow-y: auto;
+      height: calc(100% - 40px); /* Adjust for header */
+    }
+    @media (max-width: 768px) { 
+      .floating-panel { 
+        width: 90vw; 
+        right: 5vw; 
+      } 
+    }
   </style>
 </head>
 <body>
@@ -98,7 +134,8 @@
       </div>
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
-        <button class="btn" id="open-logs">Zobraziť logy</button>
+        <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
+        <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
     </div>
@@ -109,20 +146,13 @@
     <span id="notification-text"></span>
   </div>
 
-  <!-- Slide-in panel toggle button -->
-  <div class="slide-panel-toggle" id="panel-toggle">
-    <div style="writing-mode: vertical-rl; text-orientation: mixed; font-weight: 600; font-size: 14px;">
-      Rozloženie stolov →
+  <!-- Floating panel for table layout -->
+  <div class="floating-panel" id="floating-panel">
+    <div class="floating-panel-header" id="panel-header">
+      <div>Rozloženie stolov</div>
+      <button class="btn" id="close-panel" style="padding: 4px 8px; font-size: 11px;">✕</button>
     </div>
-  </div>
-
-  <!-- Slide-in panel for table layout -->
-  <div class="slide-panel" id="slide-panel">
-    <div style="padding: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="font-weight: 700; font-size: 16px;">Rozloženie stolov</div>
-        <button class="btn" id="close-panel">✕ Zavrieť</button>
-      </div>
+    <div class="floating-panel-content">
       <div class="muted" id="panel-plan-date" style="margin-bottom: 12px; font-size: 13px;"></div>
       
       <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
@@ -254,8 +284,10 @@
         <label class="row"><input type="radio" name="labelstyle" id="style-initials" /> Iniciály</label>
 
         <div style="height:12px"></div>
-        <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
-        <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        <div id="team-section-header">
+          <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
+          <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
+        </div>
         
         <div id="admin-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fefce8;">
           <div style="font-weight:600; margin-bottom:8px;">Správa administrátorov</div>
@@ -268,8 +300,6 @@
             <button class="btn" id="show-admin-password">Zobraziť heslo</button>
             <button class="btn" id="change-admin-password">Zmeniť heslo</button>
           </div>
-          
-          <div class="muted" style="font-size:11px;">Super admin heslo: "Cica432" (umožňuje všetky zmeny)</div>
         </div>
         
         <div id="data-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0f9ff;">
@@ -1070,9 +1100,41 @@
             btnRemove.style.marginLeft = "4px";
             btnRemove.onclick = function() {
               if(!confirm("Odstrániť '" + name + "' zo zoznamu?")) return;
+              
+              // Remove user from team
               team = team.filter(function(n){ return n !== name; });
               settings.team = team;
-              renderTeamTable();
+              
+              // Remove all future reservations for this user
+              var today = new Date();
+              today.setHours(0, 0, 0, 0);
+              var todayStr = fmtDate(today);
+              
+              var updatedSchedule = {};
+              for (var dateStr in schedule) {
+                if (dateStr >= todayStr) {
+                  // This is today or a future date
+                  var seats = schedule[dateStr];
+                  var updatedSeats = {};
+                  for (var seat in seats) {
+                    if (seats[seat] !== name) {
+                      updatedSeats[seat] = seats[seat];
+                    }
+                  }
+                  updatedSchedule[dateStr] = updatedSeats;
+                } else {
+                  // Keep past reservations unchanged
+                  updatedSchedule[dateStr] = schedule[dateStr];
+                }
+              }
+              schedule = updatedSchedule;
+              
+              // Save changes
+              saveSchedule(function() {
+                renderTeamTable();
+                render();
+                showNotification("✓ Používateľ bol odstránený a jeho budúce rezervácie boli zrušené.", false);
+              });
             };
             tdActions.appendChild(btnRemove);
           }
@@ -1318,16 +1380,31 @@
       renderTeamTable();
       renderAdminList();
       
-      // Show/hide admin management based on permissions
+      // Show/hide admin management and team section header based on permissions
       var adminMgmt = document.getElementById("admin-management");
       var dataMgmt = document.getElementById("data-management");
+      var teamSectionHeader = document.getElementById("team-section-header");
+      var passwordInput = document.getElementById("admin-password-input");
+      
       if (userIsAdmin || !hasAdmin) {
         adminMgmt.style.display = "block";
         dataMgmt.style.display = "block";
+        teamSectionHeader.style.display = "block";
         renderDataFilesList();
+        
+        // Show admin password by default for admins
+        passwordInput.type = "text";
+        passwordInput.value = settings.adminPassword || "Cica123";
+        document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         adminMgmt.style.display = "none";
         dataMgmt.style.display = "none";
+        teamSectionHeader.style.display = "none";
+        
+        // Keep password hidden for non-admins
+        passwordInput.type = "password";
+        passwordInput.value = "";
+        document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
       }
     };
     document.getElementById("open-logs").onclick=function(){
@@ -1488,28 +1565,61 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Panel toggle for slide-in layout
-    document.getElementById("panel-toggle").onclick=function(){
-      var panel = document.getElementById("slide-panel");
-      var toggle = document.getElementById("panel-toggle");
-      
-      if(panel.classList.contains("open")) {
-        panel.classList.remove("open");
-        toggle.classList.remove("panel-open");
-        toggle.querySelector("div").textContent = "Rozloženie stolov →";
-      } else {
-        panel.classList.add("open");
-        toggle.classList.add("panel-open");
-        toggle.querySelector("div").textContent = "← Zavrieť";
+    // Make floating panel draggable
+    (function() {
+      var panel = document.getElementById("floating-panel");
+      var header = document.getElementById("panel-header");
+      var isDragging = false;
+      var currentX;
+      var currentY;
+      var initialX;
+      var initialY;
+      var xOffset = 0;
+      var yOffset = 0;
+
+      header.addEventListener("mousedown", dragStart);
+      document.addEventListener("mousemove", drag);
+      document.addEventListener("mouseup", dragEnd);
+
+      function dragStart(e) {
+        if (e.target.tagName === 'BUTTON') return; // Don't drag when clicking close button
+        
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+
+        if (e.target === header || header.contains(e.target)) {
+          isDragging = true;
+        }
       }
-    };
+
+      function drag(e) {
+        if (isDragging) {
+          e.preventDefault();
+          
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+
+          xOffset = currentX;
+          yOffset = currentY;
+
+          setTranslate(currentX, currentY, panel);
+        }
+      }
+
+      function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+      }
+
+      function setTranslate(xPos, yPos, el) {
+        el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+      }
+    })();
     
     document.getElementById("close-panel").onclick=function(){
-      var panel = document.getElementById("slide-panel");
-      var toggle = document.getElementById("panel-toggle");
-      panel.classList.remove("open");
-      toggle.classList.remove("panel-open");
-      toggle.querySelector("div").textContent = "Rozloženie stolov →";
+      var panel = document.getElementById("floating-panel");
+      panel.style.display = "none";
     };
 
     // Real-time polling for concurrent changes
@@ -1526,9 +1636,23 @@
               scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
               render();
             }
+            updateLastUpdateTime();
           })
           .catch(function(err){ console.error('Polling error:', err); });
       }, 4000); // Poll every 4 seconds
+    }
+    
+    // Update last update timestamp in header
+    function updateLastUpdateTime() {
+      var now = new Date();
+      var day = ("0" + now.getDate()).slice(-2);
+      var month = ("0" + (now.getMonth() + 1)).slice(-2);
+      var year = now.getFullYear();
+      var hours = ("0" + now.getHours()).slice(-2);
+      var minutes = ("0" + now.getMinutes()).slice(-2);
+      var seconds = ("0" + now.getSeconds()).slice(-2);
+      var timeStr = "Aktuálne k: " + day + "." + month + "." + year + " " + hours + ":" + minutes + ":" + seconds;
+      document.getElementById("last-update-time").textContent = timeStr;
     }
 
     // init
@@ -1593,6 +1717,7 @@
       loadData(ui.year, ui.month, function(){
         initFocus(); 
         render();
+        updateLastUpdateTime(); // Set initial timestamp
         startPolling(); // Start real-time polling
       });
     });
