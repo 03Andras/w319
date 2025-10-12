@@ -78,12 +78,48 @@
     .team-table th { font-weight: 600; background: var(--bg); }
     .team-table tr:hover { background: #f9fafb; }
     .team-table button { padding: 4px 8px; font-size: 12px; }
-    /* Slide-in panel for table layout */
-    .slide-panel { position: fixed; top: 80px; right: -600px; width: 580px; max-width: 90vw; height: calc(100vh - 100px); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 16px 0 0 16px; box-shadow: -5px 0 30px rgba(2,6,23,.15); z-index: 40; transition: right 0.3s ease; overflow-y: auto; }
-    .slide-panel.open { right: 0; }
-    .slide-panel-toggle { position: fixed; top: 50%; right: 0; transform: translateY(-50%); background: #fff; border: 1px solid var(--border); border-right: none; border-radius: 12px 0 0 12px; padding: 12px 8px; cursor: pointer; box-shadow: -3px 0 10px rgba(2,6,23,.1); z-index: 41; transition: right 0.3s ease; }
-    .slide-panel-toggle.panel-open { right: 580px; }
-    @media (max-width: 768px) { .slide-panel { width: 90vw; right: -90vw; } .slide-panel-toggle.panel-open { right: 90vw; } }
+    /* Floating panel for table layout */
+    .floating-panel { 
+      position: fixed; 
+      top: 80px; 
+      right: 20px; 
+      width: 400px; 
+      height: 58px; /* Default height same as header bar */
+      background: #fff; 
+      border: 1px solid var(--border); 
+      border-radius: 12px; 
+      box-shadow: 0 4px 20px rgba(2,6,23,.15); 
+      z-index: 40; 
+      overflow: hidden;
+      resize: both; /* Make it resizable */
+      min-width: 200px;
+      min-height: 50px;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+    .floating-panel-header {
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      cursor: move; /* Indicate it's draggable */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 13px;
+      user-select: none;
+    }
+    .floating-panel-content {
+      padding: 12px;
+      overflow-y: auto;
+      height: calc(100% - 40px); /* Adjust for header */
+    }
+    @media (max-width: 768px) { 
+      .floating-panel { 
+        width: 90vw; 
+        right: 5vw; 
+      } 
+    }
   </style>
 </head>
 <body>
@@ -110,20 +146,13 @@
     <span id="notification-text"></span>
   </div>
 
-  <!-- Slide-in panel toggle button -->
-  <div class="slide-panel-toggle" id="panel-toggle">
-    <div style="writing-mode: vertical-rl; text-orientation: mixed; font-weight: 600; font-size: 14px;">
-      Rozloženie stolov →
+  <!-- Floating panel for table layout -->
+  <div class="floating-panel" id="floating-panel">
+    <div class="floating-panel-header" id="panel-header">
+      <div>Rozloženie stolov</div>
+      <button class="btn" id="close-panel" style="padding: 4px 8px; font-size: 11px;">✕</button>
     </div>
-  </div>
-
-  <!-- Slide-in panel for table layout -->
-  <div class="slide-panel" id="slide-panel">
-    <div style="padding: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="font-weight: 700; font-size: 16px;">Rozloženie stolov</div>
-        <button class="btn" id="close-panel">✕ Zavrieť</button>
-      </div>
+    <div class="floating-panel-content">
       <div class="muted" id="panel-plan-date" style="margin-bottom: 12px; font-size: 13px;"></div>
       
       <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
@@ -1536,28 +1565,61 @@
 
     document.getElementById("reserve-btn").onclick=function(){ var ds = fmtDate(ui.focusDate||new Date()); openModal(ds); };
 
-    // Panel toggle for slide-in layout
-    document.getElementById("panel-toggle").onclick=function(){
-      var panel = document.getElementById("slide-panel");
-      var toggle = document.getElementById("panel-toggle");
-      
-      if(panel.classList.contains("open")) {
-        panel.classList.remove("open");
-        toggle.classList.remove("panel-open");
-        toggle.querySelector("div").textContent = "Rozloženie stolov →";
-      } else {
-        panel.classList.add("open");
-        toggle.classList.add("panel-open");
-        toggle.querySelector("div").textContent = "← Zavrieť";
+    // Make floating panel draggable
+    (function() {
+      var panel = document.getElementById("floating-panel");
+      var header = document.getElementById("panel-header");
+      var isDragging = false;
+      var currentX;
+      var currentY;
+      var initialX;
+      var initialY;
+      var xOffset = 0;
+      var yOffset = 0;
+
+      header.addEventListener("mousedown", dragStart);
+      document.addEventListener("mousemove", drag);
+      document.addEventListener("mouseup", dragEnd);
+
+      function dragStart(e) {
+        if (e.target.tagName === 'BUTTON') return; // Don't drag when clicking close button
+        
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+
+        if (e.target === header || header.contains(e.target)) {
+          isDragging = true;
+        }
       }
-    };
+
+      function drag(e) {
+        if (isDragging) {
+          e.preventDefault();
+          
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+
+          xOffset = currentX;
+          yOffset = currentY;
+
+          setTranslate(currentX, currentY, panel);
+        }
+      }
+
+      function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+      }
+
+      function setTranslate(xPos, yPos, el) {
+        el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+      }
+    })();
     
     document.getElementById("close-panel").onclick=function(){
-      var panel = document.getElementById("slide-panel");
-      var toggle = document.getElementById("panel-toggle");
-      panel.classList.remove("open");
-      toggle.classList.remove("panel-open");
-      toggle.querySelector("div").textContent = "Rozloženie stolov →";
+      var panel = document.getElementById("floating-panel");
+      panel.style.display = "none";
     };
 
     // Real-time polling for concurrent changes
