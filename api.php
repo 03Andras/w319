@@ -9,9 +9,27 @@ $settingsFile = $dataDir . '/settings.json';
 $auditLogFile = $dataDir . '/audit_log.json';
 $sessionsFile = $dataDir . '/sessions.json';
 
+// Helper function to handle file write errors
+function handleFileError($filepath, $operation = 'write') {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Nesprávne oprávnenia priečinka',
+        'message' => 'Nedostatočné oprávnenia na komunikáciu so súbormi. Skontrolujte oprávnenia priečinka: ' . dirname($filepath),
+        'filepath' => $filepath
+    ]);
+    exit;
+}
+
 // Ensure data directory exists
 if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
+    if (!@mkdir($dataDir, 0755, true)) {
+        handleFileError($dataDir, 'create directory');
+    }
+}
+
+// Check if directory is writable
+if (!is_writable($dataDir)) {
+    handleFileError($dataDir, 'write to directory');
 }
 
 // Initialize settings file if it doesn't exist
@@ -22,6 +40,7 @@ if (!file_exists($settingsFile)) {
         'adminUser' => '',
         'adminUsers' => ["Eva Mészáros"],
         'adminPassword' => 'Jablko123',
+        'pinCode' => '147258369',
         'connectedUsers' => [],
         'team' => [
             "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
@@ -29,17 +48,23 @@ if (!file_exists($settingsFile)) {
             "Margaréta Cifrová","Dávid Jablonický","Peter Marko","Michal Michalec","Ľubica Hadbavná"
         ]
     ];
-    file_put_contents($settingsFile, json_encode($defaultSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if (@file_put_contents($settingsFile, json_encode($defaultSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+        handleFileError($settingsFile, 'create');
+    }
 }
 
 // Initialize audit log if it doesn't exist
 if (!file_exists($auditLogFile)) {
-    file_put_contents($auditLogFile, '[]');
+    if (@file_put_contents($auditLogFile, '[]') === false) {
+        handleFileError($auditLogFile, 'create');
+    }
 }
 
 // Initialize sessions file if it doesn't exist
 if (!file_exists($sessionsFile)) {
-    file_put_contents($sessionsFile, '[]');
+    if (@file_put_contents($sessionsFile, '[]') === false) {
+        handleFileError($sessionsFile, 'create');
+    }
 }
 
 // Helper function to get schedule file for a specific month
@@ -58,7 +83,9 @@ function addAuditLog($user, $action, $details = []) {
         'action' => $action,
         'details' => $details
     ];
-    file_put_contents($auditLogFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if (@file_put_contents($auditLogFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+        handleFileError($auditLogFile);
+    }
 }
 
 // Helper function to get client IP address
@@ -96,7 +123,9 @@ function registerSession($userName, $sessionId) {
         'active' => true
     ];
     
-    file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if (@file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+        handleFileError($sessionsFile);
+    }
     
     // Log to audit
     addAuditLog($userName, 'user_login', ['sessionId' => $sessionId, 'ipAddress' => getClientIP()]);
@@ -127,7 +156,9 @@ function updateSessionActivity($sessionId) {
         }
     }
     
-    file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if (@file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+        handleFileError($sessionsFile);
+    }
 }
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -171,8 +202,10 @@ switch ($action) {
                 $oldSchedule = json_decode(file_get_contents($scheduleFile), true) ?: [];
             }
             
-            // Save new schedule
-            file_put_contents($scheduleFile, json_encode($scheduleData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            // Save new schedule with error handling
+            if (@file_put_contents($scheduleFile, json_encode($scheduleData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+                handleFileError($scheduleFile);
+            }
             
             // Add detailed audit log
             $logDetails = array_merge($changeDetails, ['yearMonth' => $yearMonth]);
@@ -197,7 +230,9 @@ switch ($action) {
             $user = $decoded['user'] ?? 'Unknown';
             unset($decoded['user']); // Remove user from settings data
             
-            file_put_contents($settingsFile, json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            if (@file_put_contents($settingsFile, json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+                handleFileError($settingsFile);
+            }
             
             // Add audit log
             addAuditLog($user, 'settings_update', ['changes' => 'Settings modified']);
@@ -241,7 +276,9 @@ switch ($action) {
                 }
             }
             
-            file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            if (@file_put_contents($sessionsFile, json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+                handleFileError($sessionsFile);
+            }
             
             // Add to audit log
             addAuditLog($adminUser, 'user_disconnect', [
@@ -304,6 +341,13 @@ switch ($action) {
         });
         
         echo json_encode(array_values($filteredSessions));
+        break;
+    
+    case 'getPinCode':
+        // Return only the PIN code from settings (for authentication)
+        $settings = json_decode(file_get_contents($settingsFile), true);
+        $pinCode = $settings['pinCode'] ?? '147258369';
+        echo json_encode(['pinCode' => $pinCode]);
         break;
     
     default:
