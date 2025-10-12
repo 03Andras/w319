@@ -2,20 +2,76 @@
 
 Jednoduchý systém na rezerváciu stolov v kancelárii s perzistentným ukladaním dát na server.
 
-## Požiadavky
+## Dôležité informácie pred použitím
 
-- Webový server s podporou PHP (Apache, Nginx, alebo PHP built-in server)
-- PHP 7.0 alebo vyššie
-- Prístup na zápis do adresára `/data`
+### Prihlasovacie údaje
 
-## Inštalácia
+**PIN kód pre prvé prihlásenie:**
+- Pri prvom otvorení aplikácie budete vyzvaní na zadanie PIN kódu
+- PIN kód: **147258369**
+- Tento kód sa používa na overenie, že ste oprávnený používateľ
 
-1. Nahrajte všetky súbory na váš webový server
-2. Uistite sa, že adresár `/data` má práva na zápis (chmod 755 alebo 775)
-3. Otvorte `index.html` vo webovom prehliadači
+**Admin heslo:**
+- Pre prístup k nastaveniam (tlačidlo "Nastavenia") je potrebné admin heslo
+- Predvolené admin heslo: **Jablko123**
+- Heslo môžete zmeniť v nastaveniach administrátora
+- Super admin heslo: **Cica432** (má všetky oprávnenia)
 
-### Lokálny vývoj s PHP built-in serverom
+### Ako funguje systém cookies
 
+Aplikácia využíva cookies pre uchovanie vašich preferencií a session informácií:
+
+1. **Uloženie vášho mena (userName cookie):**
+   - Po prvom prihlásení s PIN kódom si systém zapamätá vaše vybrané meno
+   - Cookie sa ukladá na 365 dní
+   - Vďaka tomu nemusíte zadávať meno pri každom otvorení aplikácie
+
+2. **Session ID (sessionId cookie):**
+   - Každý používateľ dostane jedinečný session ID
+   - Session ID sa generuje automaticky pri prvom prihlásení
+   - Umožňuje sledovanie pripojených používateľov v reálnom čase
+   - Cookie sa ukladá na 365 dní
+
+3. **Validácia PIN (pinValidated cookie):**
+   - Po úspešnom zadaní PIN kódu sa uloží informácia o validácii
+   - Nemusíte zadávať PIN pri každom návrate do aplikácie
+   - Cookie sa ukladá na 365 dní
+
+**Ako vymazať cookies:**
+- Ak chcete začať odznova (napríklad sa prihlásiť pod iným menom), vymažte cookies prehliadača pre túto stránku
+- Alebo v prehliadači prejdite do nastavení → Súkromie → Vymazať cookies
+
+## Technické požiadavky
+
+- **Webový server** s podporou PHP (Apache, Nginx, alebo PHP built-in server)
+- **PHP 7.0 alebo vyššie**
+- **Prístup na zápis** do adresára `/data`
+- **Žiadne externé knižnice nie sú potrebné** - aplikácia používa iba čistý HTML, JavaScript a PHP bez závislostí na externých knižniciach (jQuery, React, atď.)
+
+## Inštalácia krok za krokom
+
+### Krok 1: Nahranie súborov na server
+1. Nahrajte všetky súbory z projektu na váš webový server
+2. Uistite sa, že zachováte štruktúru adresárov
+
+### Krok 2: Nastavenie oprávnení
+1. Vytvorte adresár `/data` ak neexistuje (vytvorí sa automaticky pri prvom použití)
+2. Nastavte práva na zápis pre adresár `/data`:
+   ```bash
+   chmod 755 data
+   # alebo
+   chmod 775 data
+   ```
+
+### Krok 3: Prvé spustenie
+1. Otvorte vo webovom prehliadači súbor `index.html`
+2. Zadajte PIN kód: **147258369**
+3. Vyberte svoje meno zo zoznamu
+4. Systém je pripravený na použitie!
+
+### Alternatívne: Lokálny vývoj s PHP built-in serverom
+
+Pre lokálne testovanie:
 ```bash
 php -S localhost:8080
 ```
@@ -26,48 +82,173 @@ Potom otvorte v prehliadači: `http://localhost:8080/index.html`
 
 ```
 /
-├── index.html          # Hlavný HTML súbor aplikácie
-├── api.php            # PHP API pre ukladanie a načítanie dát
+├── index.html          # Hlavný HTML súbor aplikácie (obsahuje všetko potrebné)
+├── api.php            # PHP API pre ukladanie a načítanie dát (backend)
 ├── data/              # Adresár pre JSON súbory (vytvára sa automaticky)
 │   ├── .htaccess     # Ochrana pred priamym prístupom
-│   ├── schedule.json  # Rezervácie stolov
-│   └── settings.json  # Nastavenia a členovia tímu
+│   ├── schedule_YYYYMM.json  # Rezervácie stolov pre jednotlivé mesiace
+│   ├── settings.json  # Nastavenia a členovia tímu
+│   ├── audit_log.json # História všetkých zmien
+│   └── sessions.json  # Aktívne používateľské sessions
 └── README.md          # Tento súbor
 ```
 
-## Funkcie
+## Hlavné funkcie aplikácie
 
-- **Rezervácia stolov**: Kliknutím na zelené voľné miesto v kalendári rezervujete stôl
-- **Kalendár**: Prehľad rezervácií na celý mesiac
-- **Nastavenia**: Správa členov tímu a vlastníka počítača
-- **Automatické ukladanie**: Všetky zmeny sa ukladajú na server do JSON súborov
-- **Bez databázy**: Dáta sa ukladajú do jednoduchých JSON súborov
+### 1. Rezervácia stolov
+- Kliknutím na zelené voľné miesto v kalendári vytvoríte rezerváciu
+- Môžete rezervovať stôl pre seba alebo pre kolegu
+- Číslo stola sa automaticky zobrazí v kalendári
+- Modré ikony = vaše rezervácie, zelené čísla = voľné miesta
 
-## API Endpoints
+### 2. Kalendár
+- Prehľad rezervácií na celý mesiac
+- Navigácia medzi mesiacmi pomocou šípok ← →
+- Zelené čísla označujú počet voľných stolov (z celkových 7)
+- Šedé dni = víkendy (bez možnosti rezervácie)
 
-### GET /api.php?action=getSchedule
-Načíta všetky rezervácie.
+### 3. Nastavenia (vyžaduje admin heslo)
+- Správa členov tímu (pridávanie, úprava, mazanie)
+- Zmena štýlu zobrazenia mien (celé meno / iniciály)
+- Správa administrátorov
+- Zmena admin hesla
+- Export a import dát
+- Správa pripojených používateľov (odpojenie neaktívnych)
 
-### POST /api.php?action=saveSchedule
-Uloží rezervácie. Telo požiadavky musí byť JSON objekt.
+### 4. História zmien (Audit Log)
+- Každá akcia je zaznamenaná s časovou pečiatkou
+- Zobrazuje kto, kedy a čo zmenil
+- Rôzne typy udalostí majú rôzne farebné pozadia:
+  - **Svetlo modrá** - aktualizácia rozvrhu (schedule_update)
+  - **Svetlo oranžová** - zmena nastavení (settings_update)
+  - **Svetlo zelená** - prihlásenie používateľa (user_login)
+  - **Svetlo červená** - odpojenie používateľa (user_disconnect)
+  - **Svetlo fialová** - zmena hesla (password_change)
 
-### GET /api.php?action=getSettings
-Načíta nastavenia a zoznam členov tímu.
+### 5. Automatické ukladanie
+- Všetky zmeny sa okamžite ukladajú na server
+- Dáta sú perzistentné - nestrácajú sa pri zatvorení prehliadača
+- Žiadna databáza nie je potrebná - všetko sa ukladá do JSON súborov
 
-### POST /api.php?action=saveSettings
-Uloží nastavenia. Telo požiadavky musí byť JSON objekt.
+### 6. Plán kancelárie
+- Vizuálny prehľad rozloženia stolov
+- Zobrazuje obsadenosť jednotlivých miest
+- Žltá farba = váš stôl, modrá = ostatní
+
+## Ako používať aplikáciu - príklady
+
+### Vytvorenie rezervácie
+1. V kalendári kliknite na deň, kedy chcete rezervovať stôl
+2. Otvorí sa okno s dostupnými stolmi (1-7)
+3. Kliknite na číslo voľného stola
+4. Rezervácia sa automaticky uloží
+
+### Zrušenie vlastnej rezervácie
+1. V kalendári kliknite na deň s vašou rezerváciou (modrá ikona)
+2. Kliknite na tlačidlo "Zrušiť rezerváciu"
+3. Rezervácia sa okamžite odstráni
+
+### Pridanie nového člena tímu (admin)
+1. Otvorte Nastavenia (vyžaduje admin heslo)
+2. V sekcii "Tím" kliknite na "Pridať člena"
+3. Zadajte meno a priezvisko
+4. Kliknite "Uložiť nastavenia"
+
+### Zmena admin hesla
+1. Otvorte Nastavenia (vyžaduje admin heslo)
+2. V sekcii "Admin" kliknite "Zmeniť heslo"
+3. Zadajte nové heslo
+4. Heslo sa okamžite uloží
+
+## API Endpoints (pre vývojárov)
+
+### Získanie rozvrhu
+```
+GET /api.php?action=getSchedule&yearMonth=YYYYMM
+```
+Vráti rezervácie pre daný mesiac v JSON formáte.
+
+### Uloženie rozvrhu
+```
+POST /api.php?action=saveSchedule
+Content-Type: application/json
+
+{
+  "user": "Meno Používateľa",
+  "yearMonth": "YYYYMM",
+  "schedule": { ... }
+}
+```
+
+### Získanie nastavení
+```
+GET /api.php?action=getSettings
+```
+Vráti nastavenia a zoznam členov tímu.
+
+### Uloženie nastavení
+```
+POST /api.php?action=saveSettings
+Content-Type: application/json
+
+{
+  "user": "Meno Používateľa",
+  "ownerName": "...",
+  "team": [...],
+  ...
+}
+```
+
+### História zmien
+```
+GET /api.php?action=getAuditLog
+```
+Vráti zoznam všetkých zmien.
+
+### Session management
+```
+POST /api.php?action=registerSession
+GET /api.php?action=getSessions
+GET /api.php?action=checkSession
+POST /api.php?action=disconnectUser
+```
 
 ## Bezpečnosť
 
-- Adresár `/data` je chránený pomocou `.htaccess` súboru
-- Všetky dáta sú ukladané v JSON formáte s UTF-8 kódovaním
-- API endpoint validuje JSON vstup
+- **Ochrana dátového adresára:** Adresár `/data` je chránený pomocou `.htaccess` súboru, ktorý zabraňuje priamemu prístupu k JSON súborom
+- **UTF-8 kódovanie:** Všetky dáta sú ukladané v JSON formáte s UTF-8 kódovaním pre správne zobrazenie slovenských znakov
+- **Validácia vstupu:** API endpoint validuje JSON vstup pred uložením
+- **PIN overenie:** Prístup k aplikácii vyžaduje zadanie PIN kódu
+- **Admin autentifikácia:** Prístup k nastaveniam vyžaduje admin heslo
+- **Session tracking:** Sledovanie aktívnych používateľov s možnosťou odpojenia
 
-## Licencia
+## Žiadne externé knižnice
 
-Pripravila: Eva Mészáros
-Určené pre: IT oddelenie Wüstenrot na posúdenie a implementáciu
+Táto aplikácia je **samostatná** a **nevyžaduje žiadne externé JavaScript alebo CSS knižnice**:
+- ✅ Žiadne jQuery
+- ✅ Žiadny React, Vue alebo Angular
+- ✅ Žiadny Bootstrap alebo iné CSS frameworky
+- ✅ Žiadne NPM balíčky
+- ✅ Žiadne CDN závislosti
 
-## Požiadavka na nasadenie
+Všetko je napísané v čistom (vanilla) HTML, CSS a JavaScripte. PHP súbor `api.php` tiež nepoužíva žiadne externé knižnice - len štandardné PHP funkcie.
 
-Prosím IT oddelenie o zváženie nasadenia tejto aplikácie na lokálny webový server s prístupom cez VPN. Aplikácia nevyžaduje databázu – stačí nahrať súbory na server a sprístupniť ich interno cez VPN. Toto by značne uľahčilo prácu, pretože kancelária 3.19 by mohla bez problémov pristupovať k systému rezervácií.
+## Odporúčania pre nasadenie
+
+### Pre IT oddelenie Wüstenrot
+
+Prosím IT oddelenie o zváženie nasadenia tejto aplikácie na lokálny webový server s prístupom cez VPN:
+
+1. **Nevyžaduje databázu** - stačí nahrať súbory na server
+2. **Minimálne požiadavky** - PHP 7.0+ a zápis do adresára
+3. **Bezpečné** - prístup len cez VPN, chránený PIN kódom a heslom
+4. **Jednoduché na údržbu** - všetky dáta v JSON súboroch
+5. **Žiadne externé závislosti** - funguje offline v rámci siete
+
+Aplikácia by značne uľahčila prácu kancelárie 3.19, ktorá by mohla bez problémov pristupovať k systému rezervácií stolov.
+
+---
+
+**Pripravila:** Eva Mészáros  
+**Určené pre:** IT oddelenie Wüstenrot na posúdenie a implementáciu  
+**Verzia:** 1.0
