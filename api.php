@@ -21,7 +21,7 @@ if (!file_exists($settingsFile)) {
         'labelStyle' => 'surname',
         'adminUser' => '',
         'adminUsers' => [],
-        'adminPassword' => 'admin123',
+        'adminPassword' => 'Jablko123',
         'accessPin' => '147258369',
         'connectedUsers' => [],
         'team' => [

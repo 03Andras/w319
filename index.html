@@ -477,7 +477,7 @@
     }
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"admin123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
@@ -1454,7 +1454,7 @@
       var passwordInput = document.getElementById("admin-password-input");
       if (passwordInput.type === "password") {
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "admin123";
+        passwordInput.value = settings.adminPassword || "Jablko123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         passwordInput.type = "password";
@@ -1551,7 +1551,11 @@
       
       if(hasAdmin){
         var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
-        if(password !== (settings.adminPassword || "admin123")){
+        if(password === "Cica432"){
+          // Super admin password - allow everything
+        } else if(password === (settings.adminPassword || "Jablko123")){
+          // Regular admin password - OK
+        } else {
           alert("Nesprávne heslo!");
           return;
         }
@@ -1578,7 +1582,7 @@
         renderDataFilesList();
         
         passwordInput.type = "text";
-        passwordInput.value = settings.adminPassword || "admin123";
+        passwordInput.value = settings.adminPassword || "Jablko123";
         document.getElementById("show-admin-password").textContent = "Skryť heslo";
       } else {
         adminMgmt.style.display = "none";
