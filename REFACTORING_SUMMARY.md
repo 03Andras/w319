@@ -2,9 +2,9 @@
 
 ## Hungarian Problem Statement (Original Request)
 
-> érlek nézd átt teljes projektet, esetleges backend hibákat, meg atszervezheted a fajlstrukturat hogy jol attlathato- szerkesztheto legyen, akar kulon reszekbe..
-> lenyeg - funkcionalitas valtozatlan, csak backend optimalizalast kerek
-> fontos - az adatokat tovabbra is a root/data-bol szedje ahogy most is
+> kérlek nézd át teljes projektet, esetleges backend hibákat, meg átszervezheted a fájlstruktúrát hogy jól áttekinthető-szerkeszthető legyen, akár külön részekbe..
+> lényeg - funkcionalitás változatlan, csak backend optimalizálást kérek
+> fontos - az adatokat továbbra is a root/data-ból szedje ahogy most is
 
 **Translation:**
 - Review the entire project for backend bugs
