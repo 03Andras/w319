@@ -22,8 +22,8 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
     .grid { display:grid; gap:6px; }
     .grid-7 { grid-template-columns: repeat(7, minmax(100px, 1fr)); } /* širšie stĺpce */
-    .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease; display:flex; flex-direction:column; }
-    .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; }
+    .day { min-height: 172px; padding:8px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; transition: box-shadow .15s ease, background-color .15s ease; display:flex; flex-direction:column; }
+    .day:hover { box-shadow: 0 0 0 2px #e2e8f0 inset; background-color: #fef3c7; }
     .day:focus { outline: none; }
     .day.weekend, .day.holiday { background: var(--holiday); color: var(--holiday-text); }
     .day.past { background: var(--holiday); color: var(--holiday-text); }
@@ -37,6 +37,7 @@
     .seatline { display:flex; align-items:center; gap:6px; min-height:22px; padding:2px 6px; border-radius:8px; }
     .seatline.free { background: var(--free); cursor: pointer; transition: background 0.15s ease; }
     .seatline.free:hover { background: #d1fae5; }
+    .seatline.my-reservation { background: #dbeafe; border: 2px solid #3b82f6; font-weight: 600; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
@@ -861,7 +862,15 @@
       for(var i=0;i<start;i++){ var pad=document.createElement("div"); cal.appendChild(pad); }
       for(var d=1; d<=total; d++){
         var dt=new Date(ui.year, ui.month, d); var dStr=fmtDate(dt);
-        var seats=getDaySeats(dStr), taken=0; for(var k in seats){ if(seats[k]) taken++; }
+        var seats=getDaySeats(dStr), taken=0; 
+        var myName = myCurrentName();
+        var hasMyReservation = false;
+        for(var k in seats){ 
+          if(seats[k]) taken++; 
+          if(myName && seats[k].toLowerCase() === myName.toLowerCase()) {
+            hasMyReservation = true;
+          }
+        }
 
         var cell=document.createElement("div"); cell.className="day"; cell.setAttribute("role","button"); cell.tabIndex=0;
         var nonWork = isNonWorking(dt);
@@ -871,6 +880,13 @@
 
         if([6,0].indexOf(dt.getDay())!==-1) cell.classList.add("weekend");
         if(dStr===fmtDate(new Date())) cell.classList.add("today");
+        
+        // Add visual indicator if user has a reservation on this day
+        if(hasMyReservation && !nonWork) {
+          cell.style.borderColor = "#3b82f6";
+          cell.style.borderWidth = "2px";
+          cell.style.backgroundColor = "#eff6ff";
+        }
 
         var top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
         var l=document.createElement("div"); l.style.fontWeight="700"; l.textContent=d+".";
@@ -904,6 +920,12 @@
             var no=document.createElement("span"); no.className="seatno"; no.textContent=idx;
             var who=document.createElement("span"); who.className="name";
             if(seats[idx]){
+              // Check if this reservation belongs to the current user
+              var myName = myCurrentName();
+              var isMyReservation = myName && seats[idx].toLowerCase() === myName.toLowerCase();
+              if(isMyReservation) {
+                line.classList.add("my-reservation");
+              }
               who.innerHTML="<b>"+labelOf(seats[idx],false)+"</b>";
               line.appendChild(no); line.appendChild(who);
               var lockSpan=document.createElement("span"); lockSpan.className="lock"; lockSpan.textContent="🔒";
