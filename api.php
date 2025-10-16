@@ -195,6 +195,34 @@ switch ($action) {
                 break;
             }
             
+            // Check if booking is within allowed time range (3 months ahead, starting from new month)
+            $currentDate = new DateTime();
+            $currentYearMonth = $currentDate->format('Ym');
+            
+            // Parse target year and month
+            $targetYear = (int)substr($yearMonth, 0, 4);
+            $targetMonth = (int)substr($yearMonth, 4, 2);
+            
+            // Calculate 3 months from now
+            $threeMonthsAhead = clone $currentDate;
+            $threeMonthsAhead->modify('+3 months');
+            // Set to first day of that month
+            $threeMonthsAhead->setDate($threeMonthsAhead->format('Y'), $threeMonthsAhead->format('n'), 1);
+            
+            $targetDate = new DateTime();
+            $targetDate->setDate($targetYear, $targetMonth, 1);
+            
+            // Check if target month is too far in the future
+            if ($targetDate > $threeMonthsAhead) {
+                http_response_code(400);
+                $availableFromDate = $threeMonthsAhead->format('d.m.Y');
+                echo json_encode([
+                    'error' => 'Rezervácia na tento mesiac bude dostupná od ' . $availableFromDate,
+                    'message' => 'Rezervácia na tento mesiac bude dostupná od ' . $availableFromDate
+                ]);
+                break;
+            }
+            
             // Load old schedule to compare
             $scheduleFile = getScheduleFile($yearMonth);
             $oldSchedule = [];

@@ -140,6 +140,7 @@
         <select id="month"></select>
         <input id="year" type="number" style="width:90px" />
         <button class="btn" id="nav-next">→</button>
+        <button class="btn" id="nav-today">Dnes</button>
         <select id="weekday-picker" style="margin-left:8px; display:none;">
           <option value="">Vybrať deň...</option>
         </select>
@@ -725,6 +726,21 @@
     
     function loadData(year, month, callback){ 
       var yearMonth = getYearMonth(year, month);
+      
+      // Check if we're trying to view a month that's too far in the future
+      var currentDate = new Date();
+      var targetDate = new Date(year, month, 1);
+      var threeMonthsAhead = new Date(currentDate);
+      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
+      threeMonthsAhead.setDate(1);
+      threeMonthsAhead.setHours(0, 0, 0, 0);
+      
+      if (targetDate > threeMonthsAhead && !isAdmin()) {
+        var availableDate = new Date(threeMonthsAhead);
+        var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
+        showNotification("Rezervácia na tento mesiac bude dostupná od " + formattedDate, true);
+      }
+      
       if (scheduleCache[yearMonth]) {
         schedule = JSON.parse(JSON.stringify(scheduleCache[yearMonth]));
         if(callback) callback();
@@ -859,14 +875,18 @@
       for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
       document.getElementById("year").value = ui.year;
       
-      // Populate weekday picker with only weekdays from current month
+      // Populate weekday picker with only weekdays from current month (today and future only)
       var weekdayPicker = document.getElementById("weekday-picker");
       weekdayPicker.innerHTML = '<option value="">Vybrať deň...</option>';
       var total = daysInMonth(ui.year, ui.month);
       var weekdayDays = [];
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
       for(var d=1; d<=total; d++){
         var dt = new Date(ui.year, ui.month, d);
-        if(!isNonWorking(dt)){
+        dt.setHours(0, 0, 0, 0);
+        // Only include today and future working days
+        if(!isNonWorking(dt) && dt >= today){
           weekdayDays.push({day: d, date: dt, str: fmtDate(dt)});
         }
       }
@@ -971,6 +991,33 @@
 
       // Calendar
       var cal=document.getElementById("calendar"); cal.innerHTML="";
+      
+      // Check if current month is too far in the future
+      var currentDate = new Date();
+      var targetDate = new Date(ui.year, ui.month, 1);
+      var threeMonthsAhead = new Date(currentDate);
+      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
+      threeMonthsAhead.setDate(1);
+      threeMonthsAhead.setHours(0, 0, 0, 0);
+      
+      var isTooFarAhead = targetDate > threeMonthsAhead && !isAdmin();
+      
+      if (isTooFarAhead) {
+        var availableDate = new Date(threeMonthsAhead);
+        var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
+        var warningDiv = document.createElement("div");
+        warningDiv.style.gridColumn = "1 / -1";
+        warningDiv.style.padding = "20px";
+        warningDiv.style.background = "#fef2f2";
+        warningDiv.style.border = "2px solid #fca5a5";
+        warningDiv.style.borderRadius = "12px";
+        warningDiv.style.textAlign = "center";
+        warningDiv.style.color = "#991b1b";
+        warningDiv.style.fontWeight = "600";
+        warningDiv.innerHTML = "⚠️ Rezervácia na tento mesiac bude dostupná od " + formattedDate;
+        cal.appendChild(warningDiv);
+      }
+      
       var first=firstDayOfMonth(ui.year, ui.month); var start=(first.getDay()+6)%7; var total=daysInMonth(ui.year, ui.month);
       for(var i=0;i<start;i++){ var pad=document.createElement("div"); cal.appendChild(pad); }
       for(var d=1; d<=total; d++){
@@ -1735,6 +1782,16 @@
       var m=ui.month+1; 
       if(m>11){ ui.month=0; ui.year++; } else ui.month=m; 
       loadData(ui.year, ui.month, function() { render(); });
+    };
+    document.getElementById("nav-today").onclick=function(){ 
+      var today = new Date();
+      ui.month = today.getMonth();
+      ui.year = today.getFullYear();
+      ui.focusDate = today;
+      loadData(ui.year, ui.month, function() { 
+        render();
+        selectDay(fmtDate(today));
+      });
     };
     document.getElementById("month").onchange=function(e){ 
       var newMonth = parseInt(e.target.value,10);
