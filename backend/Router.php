@@ -18,7 +18,7 @@ class Router {
      * Handle incoming request
      */
     public static function handle($action) {
-        if (!isset(self::$routes[$action])) {
+        if (empty($action) || !isset(self::$routes[$action])) {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
             return;
