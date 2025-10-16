@@ -117,21 +117,6 @@
     .pin-error.show { display: block; }
     .main-content { display: none; }
     .main-content.visible { display: block; }
-    /* Manual content styling */
-    #manual-content h1 { font-size: 24px; margin: 20px 0 16px 0; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px; }
-    #manual-content h2 { font-size: 20px; margin: 18px 0 12px 0; color: var(--text); }
-    #manual-content h3 { font-size: 16px; margin: 14px 0 10px 0; color: var(--text); }
-    #manual-content p { margin: 10px 0; line-height: 1.6; }
-    #manual-content ul, #manual-content ol { margin: 10px 0; padding-left: 24px; }
-    #manual-content li { margin: 6px 0; line-height: 1.5; }
-    #manual-content code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
-    #manual-content pre { background: #f3f4f6; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
-    #manual-content strong, #manual-content b { font-weight: 700; color: var(--text); }
-    #manual-content em { font-style: italic; }
-    #manual-content hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
-    #manual-content a { color: var(--accent); text-decoration: none; }
-    #manual-content a:hover { text-decoration: underline; }
-    #manual-content blockquote { border-left: 4px solid var(--accent); padding-left: 16px; margin: 12px 0; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -167,7 +152,6 @@
         <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
         <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
-        <button class="btn" id="open-manual" style="background: #dbeafe; border-color: #3b82f6; color: #1e40af;" title="Pomocník">❓</button>
       </div>
     </div>
   </header>
@@ -433,21 +417,6 @@
           </thead>
           <tbody id="sessions-table-body"></tbody>
         </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- User Manual -->
-  <div id="manual-overlay" class="overlay">
-    <div class="modal">
-      <header>
-        <div style="font-weight:700">📖 Používateľský manuál</div>
-        <button class="btn" id="close-manual">Zavrieť</button>
-      </header>
-      <div class="content" style="padding:20px;">
-        <div id="manual-content" style="line-height: 1.6; font-size: 14px;">
-          <div class="muted">Načítavam manuál...</div>
-        </div>
       </div>
     </div>
   </div>
@@ -1940,69 +1909,6 @@
     
     document.getElementById("close-sessions").onclick=function(){ 
       document.getElementById("sessions-overlay").classList.remove("show"); 
-    };
-    
-    // Manual handlers
-    function renderManual(markdownContent) {
-      var contentDiv = document.getElementById("manual-content");
-      
-      // Simple markdown to HTML conversion
-      var html = markdownContent
-        // Headers (must be done before other replacements)
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        // Italic (but not bold)
-        .replace(/\*([^*]+?)\*/g, '<em>$1</em>')
-        // Horizontal rule
-        .replace(/^---$/gim, '<hr>')
-        // Line breaks (convert double newlines to paragraph breaks)
-        .replace(/\n\n/g, '</p><p>')
-        // Lists
-        .replace(/^\- (.+)$/gim, '<li>$1</li>');
-      
-      // Wrap consecutive list items in ul tags
-      html = html.replace(/(<li>.*?<\/li>(\s*<li>.*?<\/li>)*)/g, function(match) {
-        return '<ul>' + match + '</ul>';
-      });
-      
-      // Wrap in paragraph tags
-      html = '<div>' + html + '</div>';
-      
-      // Clean up
-      html = html.replace(/<div>\s*<\/div>/g, '');
-      html = html.replace(/<div>\s*<h/g, '<h');
-      html = html.replace(/<\/h[1-6]>\s*<\/div>/g, '');
-      html = html.replace(/<div>\s*<hr>/g, '<hr>');
-      html = html.replace(/<div>\s*<ul>/g, '<ul>');
-      html = html.replace(/<\/ul>\s*<\/div>/g, '</ul>');
-      
-      contentDiv.innerHTML = html;
-    }
-    
-    document.getElementById("open-manual").onclick=function(){
-      document.getElementById("manual-overlay").classList.add("show");
-      
-      // Load manual content from server
-      fetch('api.php?action=getManual')
-        .then(function(res){ return res.json(); })
-        .then(function(data){
-          if (data.content) {
-            renderManual(data.content);
-          } else {
-            document.getElementById("manual-content").innerHTML = '<p class="muted">Manuál sa nepodarilo načítať.</p>';
-          }
-        })
-        .catch(function(err){
-          console.error('Error loading manual:', err);
-          document.getElementById("manual-content").innerHTML = '<p class="muted">Chyba pri načítaní manuálu.</p>';
-        });
-    };
-    
-    document.getElementById("close-manual").onclick=function(){ 
-      document.getElementById("manual-overlay").classList.remove("show"); 
     };
     
     document.getElementById("save-settings").onclick=function(){
