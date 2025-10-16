@@ -203,19 +203,26 @@ switch ($action) {
             $targetYear = (int)substr($yearMonth, 0, 4);
             $targetMonth = (int)substr($yearMonth, 4, 2);
             
-            // Calculate 3 months from now
-            $threeMonthsAhead = clone $currentDate;
-            $threeMonthsAhead->modify('+3 months');
-            // Set to first day of that month
-            $threeMonthsAhead->setDate($threeMonthsAhead->format('Y'), $threeMonthsAhead->format('n'), 1);
+            // Calculate the first of next month, then add 2 more months (total 3 ahead)
+            $threeMonthsAhead = new DateTime();
+            $threeMonthsAhead->setDate($currentDate->format('Y'), $currentDate->format('n') + 1, 1);
+            $threeMonthsAhead->modify('+2 months');
+            $threeMonthsAhead->setTime(0, 0, 0);
             
             $targetDate = new DateTime();
             $targetDate->setDate($targetYear, $targetMonth, 1);
+            $targetDate->setTime(0, 0, 0);
             
-            // Check if target month is too far in the future
-            if ($targetDate > $threeMonthsAhead) {
+            // Check if target month is too far in the future (>= instead of >)
+            if ($targetDate >= $threeMonthsAhead) {
                 http_response_code(400);
-                $availableFromDate = $threeMonthsAhead->format('d.m.Y');
+                
+                // Calculate when this specific month becomes available
+                // It becomes available on the 1st of the month that is 3 months before target
+                $availableDate = clone $targetDate;
+                $availableDate->modify('-3 months');
+                $availableFromDate = $availableDate->format('d.m.Y');
+                
                 echo json_encode([
                     'error' => 'Rezervácia na tento mesiac bude dostupná od ' . $availableFromDate,
                     'message' => 'Rezervácia na tento mesiac bude dostupná od ' . $availableFromDate
