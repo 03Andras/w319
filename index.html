@@ -29,7 +29,7 @@
     .day.past { background: var(--holiday); color: var(--holiday-text); }
     .day.past .seatline.free { background: transparent; cursor: default; }
     .day.past .seatline.free:hover { background: transparent; }
-    .day.today { box-shadow: 0 0 0 3px var(--accent) inset; }
+    .day.today { box-shadow: 0 0 0 3px #047857 inset; }
     .day.selected { box-shadow: 0 0 0 3px var(--accent) inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
@@ -135,7 +135,7 @@
   <header class="sticky">
     <div class="container row" style="justify-content: space-between;">
       <h1>Kancelária 3.19</h1>
-      <div id="today-summary" style="font-size: 13px; font-weight: 600;"></div>
+      <div id="today-summary" style="font-size: 12px; font-weight: 600; line-height: 1.4; text-align: center;"></div>
       <div class="row">
         <button class="btn" id="nav-prev">←</button>
         <select id="month"></select>
@@ -927,24 +927,60 @@
 
       // Today and Tomorrow summary in header
       var todayStr=fmtDate(new Date()); 
+      var todayDate = new Date();
       var todaySeats=getDaySeats(todayStr); 
       var todayList=[];
       for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
       
-      // Tomorrow
-      var tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      var tomorrowStr = fmtDate(tomorrow);
-      var tomorrowSeats = getDaySeats(tomorrowStr);
-      var tomorrowList = [];
-      for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
-      
-      // Sort both lists alphabetically by surname
+      // Sort today list alphabetically by surname
       todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
-      tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       
+      // Determine which days to show based on current day
+      var dayOfWeek = todayDate.getDay(); // 0=Sunday, 1=Monday, ..., 5=Friday, 6=Saturday
       var summaryDiv=document.getElementById("today-summary");
-      summaryDiv.textContent = "Dnes v kancelárii: " + todayList.length + " | Zajtra: " + tomorrowList.length;
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        // Weekend - show Monday and Tuesday
+        var monday = new Date(todayDate);
+        var daysToAdd = (dayOfWeek === 0) ? 1 : 2; // Sunday->Monday(+1), Saturday->Monday(+2)
+        monday.setDate(monday.getDate() + daysToAdd);
+        var mondayStr = fmtDate(monday);
+        var mondaySeats = getDaySeats(mondayStr);
+        var mondayList = [];
+        for(var s2 in mondaySeats){ if(mondaySeats[s2]) mondayList.push(mondaySeats[s2]); }
+        mondayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+        
+        var tuesday = new Date(monday);
+        tuesday.setDate(tuesday.getDate() + 1);
+        var tuesdayStr = fmtDate(tuesday);
+        var tuesdaySeats = getDaySeats(tuesdayStr);
+        var tuesdayList = [];
+        for(var s3 in tuesdaySeats){ if(tuesdaySeats[s3]) tuesdayList.push(tuesdaySeats[s3]); }
+        tuesdayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+        
+        var mondayNames = mondayList.map(labelOf).join(", ");
+        var tuesdayNames = tuesdayList.map(labelOf).join(", ");
+        summaryDiv.innerHTML = "<div>Pondelok: " + (mondayNames || "nikto") + "</div><div>Utorok: " + (tuesdayNames || "nikto") + "</div>";
+      } else {
+        // Weekday - show today and tomorrow (or Monday if Friday)
+        var tomorrow = new Date(todayDate);
+        if (dayOfWeek === 5) {
+          // Friday - show Monday
+          tomorrow.setDate(tomorrow.getDate() + 3);
+        } else {
+          tomorrow.setDate(tomorrow.getDate() + 1);
+        }
+        var tomorrowStr = fmtDate(tomorrow);
+        var tomorrowSeats = getDaySeats(tomorrowStr);
+        var tomorrowList = [];
+        for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
+        tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+        
+        var todayNames = todayList.map(labelOf).join(", ");
+        var tomorrowNames = tomorrowList.map(labelOf).join(", ");
+        var tomorrowLabel = (dayOfWeek === 5) ? "Pondelok" : "Zajtra";
+        summaryDiv.innerHTML = "<div>Dnes: " + (todayNames || "nikto") + "</div><div>" + tomorrowLabel + ": " + (tomorrowNames || "nikto") + "</div>";
+      }
 
       // Calendar
       var cal=document.getElementById("calendar"); cal.innerHTML="";
