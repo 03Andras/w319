@@ -385,6 +385,18 @@ switch ($action) {
         echo json_encode(['pinCode' => $pinCode]);
         break;
     
+    case 'getManual':
+        // Return the user manual content
+        $manualFile = __DIR__ . '/POUŽIVATELSKÝ_MANUÁL.md';
+        if (file_exists($manualFile)) {
+            $content = file_get_contents($manualFile);
+            echo json_encode(['content' => $content]);
+        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'Manual file not found']);
+        }
+        break;
+    
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
