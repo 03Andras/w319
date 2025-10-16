@@ -2297,8 +2297,40 @@
   </script>
 
   <footer class="container" style="font-size:12px; color:#64748b; margin: 16px 0 24px 0;">
-    vytvorila: Eva Mészáros
+    <div>vytvorila: Eva Mészáros</div>
+    <div style="margin-top:8px;">
+      <button id="gdpr-toggle" aria-expanded="false" aria-controls="gdpr-text" style="background:transparent; border:1px solid #d1d5db; border-radius:6px; padding:4px 8px; font-size:11px; color:#64748b; cursor:pointer;">
+        Spracovanie údajov
+      </button>
+      <div id="gdpr-text" style="display:none; margin-top:8px; padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; font-size:11px; line-height:1.6;">
+        <p style="margin:0 0 6px 0;"><strong>Prevádzkovateľ:</strong> András Nagy (súkromná osoba), kontakt: <a href="mailto:3nagyandras@gmail.com" style="color:#2563eb;">3nagyandras@gmail.com</a></p>
+        <p style="margin:0 0 6px 0;"><strong>Spracúvané údaje:</strong> Meno používateľa a informácia o tom, na ktorom mieste sedíte v konkrétny deň.</p>
+        <p style="margin:0 0 6px 0;"><strong>Účel a právny základ:</strong> Prevádzka a zabezpečenie prístupu k aplikácii (PIN), oprávnený záujem podľa čl. 6(1)(f) GDPR.</p>
+        <p style="margin:0 0 6px 0;"><strong>Cookies:</strong> Používame len technicky nevyhnutné cookies na zapamätanie mena používateľa a overenia PIN-u (<code>userName</code>, <code>pinValidated</code>). Nepoužívame analytické ani marketingové cookies.</p>
+        <p style="margin:0 0 6px 0;"><strong>Príjemcovia/prenos údajov:</strong> Vaše údaje neodovzdávame tretím stranám a neprenášame ich mimo EÚ/EHP.</p>
+        <p style="margin:0 0 6px 0;"><strong>Doba uchovávania:</strong> Údaje uchovávame iba po dobu používania aplikácie a jej prevádzky. Na žiadosť údaje vymažeme.</p>
+        <p style="margin:0;"><strong>Vaše práva:</strong> Máte právo na prístup k údajom, ich opravu, vymazanie a obmedzenie spracovania. Pre uplatnenie práv ma kontaktujte na uvedenom e-maile.</p>
+      </div>
+    </div>
   </footer>
+
+  <script>
+    (function() {
+      var toggleBtn = document.getElementById('gdpr-toggle');
+      var gdprText = document.getElementById('gdpr-text');
+      
+      toggleBtn.addEventListener('click', function() {
+        var isExpanded = gdprText.style.display !== 'none';
+        if (isExpanded) {
+          gdprText.style.display = 'none';
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        } else {
+          gdprText.style.display = 'block';
+          toggleBtn.setAttribute('aria-expanded', 'true');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
 
