@@ -29,8 +29,7 @@
     .day.past { background: var(--holiday); color: var(--holiday-text); }
     .day.past .seatline.free { background: transparent; cursor: default; }
     .day.past .seatline.free:hover { background: transparent; }
-    .day.today { box-shadow: 0 0 0 2px #10b981 inset; }
-    .day.selected { box-shadow: 0 0 0 2px var(--accent) inset; }
+    .day.today { box-shadow: 0 0 0 2px var(--accent) inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
     .day.disabled .reserve-mini { display:none; }
@@ -41,7 +40,6 @@
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
-    .name.my-reservation { border: 2px solid #2563eb; border-radius: 6px; padding: 2px 6px; background: #dbeafe; font-weight: 700; }
     .lock { font-size: 12px; margin-left: 4px; }
     .layout { display:flex; gap:0; align-items:start; }
     .layout-left { flex: 1; min-width: 0; padding-right: 6px; }
@@ -873,7 +871,6 @@
 
         if([6,0].indexOf(dt.getDay())!==-1) cell.classList.add("weekend");
         if(dStr===fmtDate(new Date())) cell.classList.add("today");
-        if(dStr===fmtDate(ui.focusDate||new Date())) cell.classList.add("selected");
 
         var top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
         var l=document.createElement("div"); l.style.fontWeight="700"; l.textContent=d+".";
@@ -907,38 +904,10 @@
             var no=document.createElement("span"); no.className="seatno"; no.textContent=idx;
             var who=document.createElement("span"); who.className="name";
             if(seats[idx]){
-              var isMyReservation = (seats[idx] === myCurrentName());
-              if(isMyReservation) who.classList.add("my-reservation");
               who.innerHTML="<b>"+labelOf(seats[idx],false)+"</b>";
               line.appendChild(no); line.appendChild(who);
               var lockSpan=document.createElement("span"); lockSpan.className="lock"; lockSpan.textContent="🔒";
               line.appendChild(lockSpan);
-              
-              // Add click-to-delete for own reservations
-              if(isMyReservation && !isPastDate(dStr)){
-                (function(ds, seatIdx){
-                  who.style.cursor = "pointer";
-                  who.onclick = function(e){
-                    e.stopPropagation();
-                    if(!confirm("Zrušiť rezerváciu pre tento deň?")){
-                      return;
-                    }
-                    var s = getDaySeats(ds);
-                    s[seatIdx] = "";
-                    var next = {};
-                    for(var key in schedule) next[key] = schedule[key];
-                    next[ds] = s;
-                    schedule = next;
-                    var dt = parseDateStr(ds);
-                    applyChangesWithDetails({
-                      type: 'deletion',
-                      date: dt.toLocaleDateString("sk-SK"),
-                      seat: seatIdx
-                    });
-                    selectDay(ds);
-                  };
-                })(dStr, idx);
-              }
             } else {
               who.innerHTML="";
               line.appendChild(no); line.appendChild(who);
