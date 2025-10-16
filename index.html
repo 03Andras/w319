@@ -11,6 +11,7 @@
     body { margin:0; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; overflow-x:hidden; }
     .container { max-width: 100%; margin: 0 auto; padding: 16px; } /* širšie, aby sa zmestilo 7×180px + medzery */
     header.sticky { position: sticky; top:0; background: rgba(255,255,255,.9); border-bottom:1px solid var(--border); z-index:10; backdrop-filter: blur(6px); }
+    .weekday-header { position: sticky; top: 60px; background: rgba(255,255,255,.95); z-index: 9; padding: 4px 0; backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
     h1 { font-size: 20px; margin: 0; }
     .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .btn { border:1px solid var(--border); background:#fff; border-radius:12px; padding:8px 12px; cursor:pointer; font-size: 13px; }
@@ -29,7 +30,7 @@
     .day.past { background: var(--holiday); color: var(--holiday-text); }
     .day.past .seatline.free { background: transparent; cursor: default; }
     .day.past .seatline.free:hover { background: transparent; }
-    .day.today { box-shadow: 0 0 0 3px #047857 inset; }
+    .day.today { box-shadow: 0 0 0 3px #d1d5db inset; background: #f9fafb; }
     .day.selected { box-shadow: 0 0 0 3px var(--accent) inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
@@ -175,14 +176,16 @@
           </div>
         </div>
 
-        <div class="row muted" style="font-size:12px; margin-bottom:4px;">
-          <div style="flex:1; text-align:center;">Po</div>
-          <div style="flex:1; text-align:center;">Ut</div>
-          <div style="flex:1; text-align:center;">St</div>
-          <div style="flex:1; text-align:center;">Št</div>
-          <div style="flex:1; text-align:center;">Pi</div>
-          <div style="flex:1; text-align:center;">So</div>
-          <div style="flex:1; text-align:center;">Ne</div>
+        <div class="weekday-header">
+          <div class="row muted" style="font-size:12px;">
+            <div style="flex:1; text-align:center;">Po</div>
+            <div style="flex:1; text-align:center;">Ut</div>
+            <div style="flex:1; text-align:center;">St</div>
+            <div style="flex:1; text-align:center;">Št</div>
+            <div style="flex:1; text-align:center;">Pi</div>
+            <div style="flex:1; text-align:center;">So</div>
+            <div style="flex:1; text-align:center;">Ne</div>
+          </div>
         </div>
 
         <div class="grid grid-7" id="calendar"></div>
@@ -729,13 +732,19 @@
       // Check if we're trying to view a month that's too far in the future
       var currentDate = new Date();
       var targetDate = new Date(year, month, 1);
-      var threeMonthsAhead = new Date(currentDate);
-      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
-      threeMonthsAhead.setDate(1);
+      
+      // Calculate the first of next month (month 1), then add 2 more months (total 3 ahead)
+      var threeMonthsAhead = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 2);
       threeMonthsAhead.setHours(0, 0, 0, 0);
       
-      if (targetDate > threeMonthsAhead && !isAdmin()) {
-        var availableDate = new Date(threeMonthsAhead);
+      if (targetDate >= threeMonthsAhead && !isAdmin()) {
+        // Calculate when this specific month becomes available
+        // It becomes available on the 1st of the month that is 3 months before target
+        var availableDate = new Date(year, month, 1);
+        availableDate.setMonth(availableDate.getMonth() - 3);
+        availableDate.setDate(1);
+        
         var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
         showNotification("Rezervácia na tento mesiac bude dostupná od " + formattedDate, true);
       }
@@ -958,8 +967,8 @@
         for(var s3 in tuesdaySeats){ if(tuesdaySeats[s3]) tuesdayList.push(tuesdaySeats[s3]); }
         tuesdayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
         
-        var mondayNames = mondayList.map(labelOf).join(", ");
-        var tuesdayNames = tuesdayList.map(labelOf).join(", ");
+        var mondayNames = mondayList.map(function(n){ return labelOf(n, false); }).join(", ");
+        var tuesdayNames = tuesdayList.map(function(n){ return labelOf(n, false); }).join(", ");
         summaryDiv.innerHTML = "<div>Pondelok: " + (mondayNames || "nikto") + "</div><div>Utorok: " + (tuesdayNames || "nikto") + "</div>";
       } else {
         // Weekday - show today and tomorrow (or Monday if Friday)
@@ -976,8 +985,8 @@
         for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
         tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
         
-        var todayNames = todayList.map(labelOf).join(", ");
-        var tomorrowNames = tomorrowList.map(labelOf).join(", ");
+        var todayNames = todayList.map(function(n){ return labelOf(n, false); }).join(", ");
+        var tomorrowNames = tomorrowList.map(function(n){ return labelOf(n, false); }).join(", ");
         var tomorrowLabel = (dayOfWeek === 5) ? "Pondelok" : "Zajtra";
         summaryDiv.innerHTML = "<div>Dnes: " + (todayNames || "nikto") + "</div><div>" + tomorrowLabel + ": " + (tomorrowNames || "nikto") + "</div>";
       }
@@ -988,15 +997,20 @@
       // Check if current month is too far in the future
       var currentDate = new Date();
       var targetDate = new Date(ui.year, ui.month, 1);
-      var threeMonthsAhead = new Date(currentDate);
-      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
-      threeMonthsAhead.setDate(1);
+      
+      // Calculate the first of next month (month 1), then add 2 more months (total 3 ahead)
+      var threeMonthsAhead = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 2);
       threeMonthsAhead.setHours(0, 0, 0, 0);
       
-      var isTooFarAhead = targetDate > threeMonthsAhead && !isAdmin();
+      var isTooFarAhead = targetDate >= threeMonthsAhead && !isAdmin();
       
       if (isTooFarAhead) {
-        var availableDate = new Date(threeMonthsAhead);
+        // Calculate when this specific month becomes available
+        var availableDate = new Date(ui.year, ui.month, 1);
+        availableDate.setMonth(availableDate.getMonth() - 3);
+        availableDate.setDate(1);
+        
         var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
         var warningDiv = document.createElement("div");
         warningDiv.style.gridColumn = "1 / -1";
