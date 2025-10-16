@@ -29,7 +29,8 @@
     .day.past { background: var(--holiday); color: var(--holiday-text); }
     .day.past .seatline.free { background: transparent; cursor: default; }
     .day.past .seatline.free:hover { background: transparent; }
-    .day.today { box-shadow: 0 0 0 2px var(--accent) inset; }
+    .day.today { box-shadow: 0 0 0 3px var(--accent) inset; }
+    .day.selected { box-shadow: 0 0 0 2px #9ca3af inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
     .day.disabled .reserve-mini { display:none; }
@@ -37,6 +38,9 @@
     .seatline { display:flex; align-items:center; gap:6px; min-height:22px; padding:2px 6px; border-radius:8px; }
     .seatline.free { background: var(--free); cursor: pointer; transition: background 0.15s ease; }
     .seatline.free:hover { background: #d1fae5; }
+    .seatline.mine { background: #dbeafe; border: 2px solid #60a5fa; }
+    .seatline.mine .name { font-weight: 700; color: #1e40af; }
+    .seatline.mine:hover { background: #bfdbfe; cursor: pointer; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
     .name { flex:1; min-width:0; white-space:nowrap; } /* nezalamovať – do 10 znakov sa zmestí */
@@ -65,8 +69,11 @@
     .desk { fill:#e5e7eb; stroke:#cbd5e1; stroke-width:1; }
     .desk-base { fill:#d1d5db; stroke:#cbd5e1; stroke-width:1; }
     .desk-num { font: 700 18px/1 Inter, system-ui, sans-serif; fill:#394a64; text-anchor:middle; }
-    .chair { fill:#ffffff; stroke:#93c5fd; stroke-width:3; filter:url(#shadow); }
+    .chair { fill:#ffffff; stroke:#93c5fd; stroke-width:3; filter:url(#shadow); cursor: pointer; transition: all 0.2s ease; }
+    .chair:hover { stroke:#60a5fa; stroke-width:4; }
     .chair.occ { fill:#dbeafe; stroke:#2563eb; }
+    .chair.mine { fill:#fef3c7; stroke:#f59e0b; stroke-width:4; }
+    .chair.mine:hover { fill:#fde68a; stroke:#d97706; cursor: pointer; }
     .chair-txt { font: 700 12px/1 Inter, system-ui, sans-serif; fill:#0f172a; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
     .lock-icon { font: 700 10px/1 Inter, system-ui, sans-serif; fill:#1f2937; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
     /* Modal overlay */
@@ -133,6 +140,9 @@
         <select id="month"></select>
         <input id="year" type="number" style="width:90px" />
         <button class="btn" id="nav-next">→</button>
+        <select id="weekday-picker" style="margin-left:8px; display:none;">
+          <option value="">Vybrať deň...</option>
+        </select>
       </div>
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
@@ -748,14 +758,99 @@
 
     function renderPlan(dStr){
       var s=getDaySeats(dStr);
+      var myName = myCurrentName();
       for(var i=1;i<=DEFAULT_SEATS;i++){
         var c=document.getElementById("s"+i), t=document.getElementById("t"+i), li=document.getElementById("l"+i), n=s[i];
-        if(n){ c.classList.add("occ"); t.textContent=labelOf(n,true); if(li) li.textContent="🔒"; } else { c.classList.remove("occ"); t.textContent=""; if(li) li.textContent=""; }
+        var isMine = (n && n===myName);
+        if(n){ 
+          c.classList.add("occ"); 
+          if(isMine) c.classList.add("mine"); else c.classList.remove("mine");
+          t.textContent=labelOf(n,true); 
+          if(li) li.textContent="🔒"; 
+        } else { 
+          c.classList.remove("occ","mine"); 
+          t.textContent=""; 
+          if(li) li.textContent=""; 
+        }
+        
+        // Add click handlers to circles
+        (function(seatNum, occupied, isMyBooking){
+          c.style.cursor = "pointer";
+          c.onclick = function(e){
+            e.stopPropagation();
+            if(!myName){ 
+              alert("Prosím, najprv vyberte svoje meno.");
+              return; 
+            }
+            
+            // Check if date is in the past
+            if(isPastDate(dStr)){
+              alert("Nie je možné upravovať rezervácie v minulosti.");
+              return;
+            }
+            
+            if(isMyBooking){
+              // Quick delete own booking
+              var seats = getDaySeats(dStr);
+              seats[seatNum]="";
+              var next={}; 
+              for(var key in schedule) next[key]=schedule[key]; 
+              next[dStr]=seats; 
+              schedule=next;
+              var dt = parseDateStr(dStr);
+              applyChangesWithDetails({
+                type: 'deletion',
+                date: dt.toLocaleDateString("sk-SK"),
+                seat: seatNum
+              });
+              renderPlan(dStr);
+            } else if(!occupied){
+              // Reserve free seat
+              var seats = getDaySeats(dStr);
+              // Remove user from other seats on this day
+              for(var k=1; k<=DEFAULT_SEATS; k++){ 
+                if(k!==seatNum && seats[k]===myName) seats[k]=""; 
+              }
+              seats[seatNum] = myName;
+              var next = {}; 
+              for(var key in schedule) next[key] = schedule[key]; 
+              next[dStr] = seats; 
+              schedule = next;
+              var dt = parseDateStr(dStr);
+              applyChangesWithDetails({
+                type: 'reservation',
+                date: dt.toLocaleDateString("sk-SK"),
+                seat: seatNum,
+                reservedFor: myName
+              });
+              renderPlan(dStr);
+            } else {
+              alert("Toto miesto je už obsadené inou osobou.");
+            }
+          };
+        })(i, !!n, isMine);
       }
       document.getElementById("plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
     }
 
-    function selectDay(dateStr){ ui.focusDate=parseDateStr(dateStr); renderPlan(dateStr); }
+    function selectDay(dateStr){ 
+      ui.focusDate=parseDateStr(dateStr); 
+      renderPlan(dateStr);
+      // Update selected day styling
+      var allDays = document.querySelectorAll('.day');
+      allDays.forEach(function(day){
+        day.classList.remove('selected');
+      });
+      // Find and mark the selected day
+      var selectedDate = parseDateStr(dateStr);
+      allDays.forEach(function(day){
+        var dayText = day.querySelector('.row > div').textContent;
+        var dayNum = parseInt(dayText.replace('.', ''));
+        if(!isNaN(dayNum) && dayNum === selectedDate.getDate()){
+          day.classList.add('selected');
+        }
+      });
+    }
 
     function render(){
       // Month/year
@@ -763,6 +858,25 @@
       var months=["Január","Február","Marec","Apríl","Máj","Jún","Júl","August","September","Október","November","December"];
       for(var i=0;i<12;i++){ var o=document.createElement("option"); o.value=i; o.textContent=months[i]; if(i===ui.month) o.selected=true; monthSel.appendChild(o); }
       document.getElementById("year").value = ui.year;
+      
+      // Populate weekday picker with only weekdays from current month
+      var weekdayPicker = document.getElementById("weekday-picker");
+      weekdayPicker.innerHTML = '<option value="">Vybrať deň...</option>';
+      var total = daysInMonth(ui.year, ui.month);
+      var weekdayDays = [];
+      for(var d=1; d<=total; d++){
+        var dt = new Date(ui.year, ui.month, d);
+        if(!isNonWorking(dt)){
+          weekdayDays.push({day: d, date: dt, str: fmtDate(dt)});
+        }
+      }
+      weekdayDays.forEach(function(item){
+        var opt = document.createElement("option");
+        opt.value = item.str;
+        opt.textContent = item.day + ". " + item.date.toLocaleDateString("sk-SK", {weekday: 'short'});
+        weekdayPicker.appendChild(opt);
+      });
+      weekdayPicker.style.display = weekdayDays.length > 0 ? 'block' : 'none';
 
       // Names - only show names from settings (team list)
       var sel=document.getElementById("name"); sel.innerHTML="";
@@ -900,7 +1014,9 @@
           }
           
           for(var idx=1; idx<=DEFAULT_SEATS; idx++){
-            var line=document.createElement("div"); line.className="seatline"+(seats[idx] ? "" : " free");
+            var line=document.createElement("div"); 
+            var isMine = (seats[idx] && seats[idx]===myCurrentName());
+            line.className="seatline"+(seats[idx] ? (isMine ? " mine" : "") : " free");
             var no=document.createElement("span"); no.className="seatno"; no.textContent=idx;
             var who=document.createElement("span"); who.className="name";
             if(seats[idx]){
@@ -908,6 +1024,28 @@
               line.appendChild(no); line.appendChild(who);
               var lockSpan=document.createElement("span"); lockSpan.className="lock"; lockSpan.textContent="🔒";
               line.appendChild(lockSpan);
+              
+              // Add click handler for own bookings for quick deletion
+              if(isMine && !isPastDate(dStr)){
+                (function(ds, seatIdx){
+                  line.style.cursor = "pointer";
+                  line.onclick = function(e){
+                    e.stopPropagation();
+                    var s = getDaySeats(ds);
+                    s[seatIdx]=""; 
+                    var next={}; 
+                    for(var key in schedule) next[key]=schedule[key]; 
+                    next[ds]=s; 
+                    schedule=next;
+                    var dt = parseDateStr(ds);
+                    applyChangesWithDetails({
+                      type: 'deletion',
+                      date: dt.toLocaleDateString("sk-SK"),
+                      seat: seatIdx
+                    });
+                  };
+                })(dStr, idx);
+              }
             } else {
               who.innerHTML="";
               line.appendChild(no); line.appendChild(who);
@@ -1623,6 +1761,24 @@
     document.getElementById("name").onchange=function(e){ ui.selectedName=e.target.value; };
     document.getElementById("custom-name").oninput=function(e){ ui.customName=e.target.value; };
     document.getElementById("clear-custom").onclick=function(){ ui.customName=""; document.getElementById("custom-name").value=""; };
+    document.getElementById("weekday-picker").onchange=function(e){ 
+      var dateStr = e.target.value;
+      if(dateStr){
+        selectDay(dateStr);
+        // Scroll to the day in calendar
+        var allDays = document.querySelectorAll('.day');
+        allDays.forEach(function(day){
+          var dayText = day.querySelector('.row > div');
+          if(dayText){
+            var dayNum = parseInt(dayText.textContent.replace('.', ''));
+            var selectedDate = parseDateStr(dateStr);
+            if(!isNaN(dayNum) && dayNum === selectedDate.getDate()){
+              day.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+          }
+        });
+      }
+    };
     document.getElementById("open-settings").onclick=function(){
       // Check if there's an admin and if current user is not admin
       var hasAdmin = (settings.adminUser && settings.adminUser.trim() !== "") || (settings.adminUsers && settings.adminUsers.length > 0);
