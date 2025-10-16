@@ -3,3 +3,6 @@ data/*.json
 
 # But keep the .htaccess protection file
 !data/.htaccess
+
+# Backup files
+api_original.php
