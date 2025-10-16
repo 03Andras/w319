@@ -30,7 +30,7 @@
     .day.past .seatline.free { background: transparent; cursor: default; }
     .day.past .seatline.free:hover { background: transparent; }
     .day.today { box-shadow: 0 0 0 3px var(--accent) inset; }
-    .day.selected { box-shadow: 0 0 0 2px #9ca3af inset; }
+    .day.selected { box-shadow: 0 0 0 3px var(--accent) inset; }
     .day .footer { margin-top:auto; display:flex; justify-content:flex-end; }
     .day .reserve-mini { margin-top:6px; }
     .day.disabled .reserve-mini { display:none; }
@@ -38,8 +38,8 @@
     .seatline { display:flex; align-items:center; gap:6px; min-height:22px; padding:2px 6px; border-radius:8px; }
     .seatline.free { background: var(--free); cursor: pointer; transition: background 0.15s ease; }
     .seatline.free:hover { background: #d1fae5; }
-    .seatline.mine { background: #dbeafe; border: 2px solid #60a5fa; }
-    .seatline.mine .name { font-weight: 700; color: #1e40af; }
+    .seatline.mine { background: #dbeafe; }
+    .seatline.mine .name { font-weight: 700; color: #2563eb; }
     .seatline.mine:hover { background: #bfdbfe; cursor: pointer; }
     .seatno { min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; font-size:11px; }
     .seatline.free .seatno { border-color: var(--free-border); }
@@ -135,6 +135,7 @@
   <header class="sticky">
     <div class="container row" style="justify-content: space-between;">
       <h1>Kancelária 3.19</h1>
+      <div id="today-summary" style="font-size: 13px; font-weight: 600;"></div>
       <div class="row">
         <button class="btn" id="nav-prev">←</button>
         <select id="month"></select>
@@ -162,8 +163,6 @@
   <main class="container">
     <div class="layout">
       <div class="layout-left">
-        <div id="today-card" class="card" style="margin-bottom:6px;"></div>
-
         <div class="row" style="margin-bottom:6px;">
           <div class="row">
             <span class="muted" style="font-size:14px">Moje meno:</span>
@@ -926,7 +925,7 @@
         currentUserNameElement.style.display = "none";
       }
 
-      // Today card
+      // Today and Tomorrow summary in header
       var todayStr=fmtDate(new Date()); 
       var todaySeats=getDaySeats(todayStr); 
       var todayList=[];
@@ -944,50 +943,8 @@
       todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
       
-      var card=document.getElementById("today-card"); card.innerHTML="";
-      
-      // Today section
-      var todayTitle=document.createElement("div"); 
-      todayTitle.style.fontWeight="600"; 
-      todayTitle.style.fontSize="14px"; 
-      todayTitle.style.marginBottom="6px";
-      todayTitle.textContent="Dnes v kancelárii ("+(new Date()).toLocaleDateString("sk-SK")+"): "+todayList.length+" ľudí";
-      card.appendChild(todayTitle);
-      
-      if(todayList.length){
-        var wrap=document.createElement("div"); 
-        wrap.style.fontSize="13px";
-        wrap.textContent = todayList.map(function(name){ return labelOf(name, false); }).join(", ");
-        card.appendChild(wrap);
-      } else {
-        var empty=document.createElement("div"); 
-        empty.className="muted"; 
-        empty.style.fontSize="14px"; 
-        empty.textContent="Zatiaľ nikto."; 
-        card.appendChild(empty);
-      }
-      
-      // Tomorrow section
-      var tomorrowTitle=document.createElement("div"); 
-      tomorrowTitle.style.fontWeight="600"; 
-      tomorrowTitle.style.fontSize="14px"; 
-      tomorrowTitle.style.marginTop="10px";
-      tomorrowTitle.style.marginBottom="6px";
-      tomorrowTitle.textContent="Zajtra v kancelárii ("+tomorrow.toLocaleDateString("sk-SK")+"): "+tomorrowList.length+" ľudí";
-      card.appendChild(tomorrowTitle);
-      
-      if(tomorrowList.length){
-        var wrapTomorrow=document.createElement("div"); 
-        wrapTomorrow.style.fontSize="13px";
-        wrapTomorrow.textContent = tomorrowList.map(function(name){ return labelOf(name, false); }).join(", ");
-        card.appendChild(wrapTomorrow);
-      } else {
-        var emptyTomorrow=document.createElement("div"); 
-        emptyTomorrow.className="muted"; 
-        emptyTomorrow.style.fontSize="14px"; 
-        emptyTomorrow.textContent="Zatiaľ nikto."; 
-        card.appendChild(emptyTomorrow);
-      }
+      var summaryDiv=document.getElementById("today-summary");
+      summaryDiv.textContent = "Dnes v kancelárii: " + todayList.length + " | Zajtra: " + tomorrowList.length;
 
       // Calendar
       var cal=document.getElementById("calendar"); cal.innerHTML="";
