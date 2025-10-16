@@ -150,6 +150,7 @@
       <div class="row">
         <span id="current-user-name" style="font-weight: 600; margin-right: 8px;"></span>
         <span id="last-update-time" class="muted" style="font-size: 12px; margin-right: 8px;"></span>
+        <button class="btn" id="open-help" title="Používateľská príručka">❓</button>
         <button class="btn" id="open-logs">História zmien</button>
         <button class="btn" id="open-settings">Nastavenia</button>
       </div>
@@ -417,6 +418,63 @@
           </thead>
           <tbody id="sessions-table-body"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help / User Manual -->
+  <div id="help-overlay" class="overlay">
+    <div class="modal">
+      <header>
+        <div style="font-weight:700">Používateľská príručka</div>
+        <button class="btn" id="close-help">Zavrieť</button>
+      </header>
+      <div class="content" style="padding:24px; line-height:1.6;">
+        <h2 style="margin:0 0 16px 0; font-size:20px;">Vitajte v rezervačnom systéme Kancelárie 3.19</h2>
+        <p>Tento jednoduchý systém vám umožňuje rezervovať si stoly v kancelárii 3.19. Môžete si rezervovať miesto pre seba alebo pre kolegov z vášho tímu.</p>
+        
+        <h3 style="margin:20px 0 10px 0; font-size:16px;">Ako rezervovať stôl</h3>
+        <h4 style="margin:12px 0 6px 0; font-size:14px; font-weight:600;">Rezervácia pre seba</h4>
+        <ol style="margin:0 0 12px 0; padding-left:20px;">
+          <li>V kalendári kliknite na deň, kedy chcete prísť do kancelárie</li>
+          <li>Otvorí sa okno s detailom dňa a dostupnými stolmi</li>
+          <li>Kliknite na tlačidlo <strong>„Obsadiť"</strong> pri voľnom stole</li>
+          <li>Rezervácia sa automaticky uloží</li>
+        </ol>
+        
+        <h4 style="margin:12px 0 6px 0; font-size:14px; font-weight:600;">Rezervácia pre kolegu</h4>
+        <ol style="margin:0 0 12px 0; padding-left:20px;">
+          <li>V kalendári kliknite na deň, kedy chcete rezervovať pre kolegu</li>
+          <li>V otvorenom okne <strong>zaškrtnite</strong> políčko <strong>„Rezervovať pre iného"</strong></li>
+          <li>Z rozbaľovacieho zoznamu <strong>„Vybrať osobu"</strong> vyberte meno kolegu</li>
+          <li>Kliknite na tlačidlo <strong>„Obsadiť"</strong> pri voľnom stole</li>
+          <li>Rezervácia sa vytvorí na meno kolegu</li>
+        </ol>
+        
+        <h3 style="margin:20px 0 10px 0; font-size:16px;">Ako zrušiť rezerváciu</h3>
+        <ol style="margin:0 0 12px 0; padding-left:20px;">
+          <li>V kalendári kliknite na deň s vašou rezerváciou a tlačidlo <strong>„Zmeniť"</strong></li>
+          <li>V otvorenom okne kliknite na tlačidlo <strong>„Zrušiť"</strong> pri vašej rezervácii</li>
+          <li>Rezervácia bude okamžite odstránená</li>
+        </ol>
+        <p style="margin:0 0 12px 0;"><strong>Môžete zrušiť:</strong> Akúkoľvek rezerváciu na vaše meno</p>
+        <p style="margin:0 0 12px 0;"><strong>Nemôžete zrušiť:</strong> Rezervácie na meno inej osoby</p>
+        
+        <h3 style="margin:20px 0 10px 0; font-size:16px;">Prehľad kalendára</h3>
+        <ul style="margin:0 0 12px 0; padding-left:20px;">
+          <li><strong>Počet voľných miest</strong> – Zobrazuje počet dostupných stolov z celkových 7</li>
+          <li><strong>Vaše rezervácie</strong> – Sú zvýraznené modrou farbou</li>
+          <li><strong>Šedé dni</strong> – Víkendy a sviatky (rezervácie nie sú možné)</li>
+        </ul>
+        
+        <h3 style="margin:20px 0 10px 0; font-size:16px;">Často kladené otázky</h3>
+        <p style="margin:8px 0;"><strong>Môžem mať viacero rezervácií v ten istý deň?</strong><br>Nie, systém umožňuje len jednu rezerváciu na osobu na deň.</p>
+        <p style="margin:8px 0;"><strong>Vidím rezervácie všetkých kolegov?</strong><br>Áno, kalendár zobrazuje všetky rezervácie v tíme.</p>
+        <p style="margin:8px 0;"><strong>Ako ďaleko dopredu môžem rezervovať?</strong><br>Môžete rezervovať až 3 mesiace dopredu.</p>
+        <p style="margin:8px 0;"><strong>Môžem rezervovať v minulosti?</strong><br>Nie, staré rezervácie nie je možné vytvárať ani upravovať.</p>
+        <p style="margin:8px 0;"><strong>Ako poznám, že rezervácia je moja?</strong><br>Vaše rezervácie sú zvýraznené modrou farbou a vidíte pri nich tlačidlo „Zrušiť".</p>
+        
+        <p style="margin:20px 0 0 0; font-size:12px; color:#64748b;"><em>Pripravila: Eva Mészáros</em></p>
       </div>
     </div>
   </div>
@@ -1014,15 +1072,17 @@
         var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
         var warningDiv = document.createElement("div");
         warningDiv.style.gridColumn = "1 / -1";
-        warningDiv.style.padding = "20px";
-        warningDiv.style.background = "#fef2f2";
-        warningDiv.style.border = "2px solid #fca5a5";
+        warningDiv.style.padding = "40px 20px";
+        warningDiv.style.background = "#e5e7eb";
+        warningDiv.style.border = "2px solid #9ca3af";
         warningDiv.style.borderRadius = "12px";
         warningDiv.style.textAlign = "center";
-        warningDiv.style.color = "#991b1b";
+        warningDiv.style.color = "#4b5563";
         warningDiv.style.fontWeight = "600";
+        warningDiv.style.fontSize = "16px";
         warningDiv.innerHTML = "⚠️ Rezervácia na tento mesiac bude dostupná od " + formattedDate;
         cal.appendChild(warningDiv);
+        return; // Don't render calendar days for unavailable months
       }
       
       var first=firstDayOfMonth(ui.year, ui.month); var start=(first.getDay()+6)%7; var total=daysInMonth(ui.year, ui.month);
@@ -1911,6 +1971,13 @@
       document.getElementById("sessions-overlay").classList.remove("show"); 
     };
     
+    document.getElementById("open-help").onclick=function(){
+      document.getElementById("help-overlay").classList.add("show");
+    };
+    document.getElementById("close-help").onclick=function(){ 
+      document.getElementById("help-overlay").classList.remove("show"); 
+    };
+    
     document.getElementById("save-settings").onclick=function(){
       settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
       settings.team = team;
@@ -2297,8 +2364,38 @@
   </script>
 
   <footer class="container" style="font-size:12px; color:#64748b; margin: 16px 0 24px 0;">
-    vytvorila: Eva Mészáros
+    <div style="margin-bottom: 8px;">vytvorila: Eva Mészáros</div>
+    <button 
+      id="gdpr-toggle" 
+      aria-expanded="false" 
+      aria-controls="gdpr-content"
+      style="background:transparent; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:11px; color:#64748b; cursor:pointer; font-family:inherit;">
+      Spracovanie údajov
+    </button>
+    <div id="gdpr-content" hidden style="margin-top:12px; padding:12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; font-size:11px; line-height:1.6; color:#374151; max-width:700px;">
+      <p style="margin:0 0 8px 0;"><strong>Prevádzkovateľ:</strong> András Nagy (súkromná osoba), kontakt: <a href="mailto:3nagyandras@gmail.com" style="color:#2563eb;">3nagyandras@gmail.com</a>.</p>
+      <p style="margin:0 0 8px 0;"><strong>Údaje:</strong> meno a informácia o tom, na ktorom mieste sedíte v konkrétny deň.</p>
+      <p style="margin:0 0 8px 0;"><strong>Účel a právny základ:</strong> prevádzka a zabezpečenie prístupu k aplikácii (PIN), oprávnený záujem podľa čl. 6(1)(f) GDPR.</p>
+      <p style="margin:0 0 8px 0;"><strong>Cookies:</strong> len technicky nevyhnutné (zapamätanie mena a overenia PIN‑u: userName, pinValidated), bez analytiky a marketingu.</p>
+      <p style="margin:0 0 8px 0;"><strong>Príjemcovia/prenos:</strong> neodovzdávam tretím stranám, neprenášam mimo EÚ/EHP.</p>
+      <p style="margin:0 0 8px 0;"><strong>Doba uchovávania:</strong> iba po dobu používania a prevádzky; na žiadosť údaje vymažem.</p>
+      <p style="margin:0;"><strong>Práva:</strong> prístup, oprava, vymazanie, obmedzenie; kontaktujte ma na uvedenom e‑maile.</p>
+    </div>
   </footer>
+  
+  <script>
+    (function () {
+      var btn = document.getElementById('gdpr-toggle');
+      var panel = document.getElementById('gdpr-content');
+      if (btn && panel) {
+        btn.addEventListener('click', function () {
+          var expanded = btn.getAttribute('aria-expanded') === 'true';
+          panel.hidden = expanded;
+          btn.setAttribute('aria-expanded', String(!expanded));
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
 
