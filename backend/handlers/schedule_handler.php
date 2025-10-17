@@ -5,7 +5,7 @@
  */
 
 /**
- * Handle getSchedule action
+ * Handle getSchedule action with retry logic for reliability
  */
 function handleGetSchedule() {
     $yearMonth = $_GET['yearMonth'] ?? '';
@@ -17,11 +17,53 @@ function handleGetSchedule() {
     $scheduleFile = getScheduleFile($yearMonth);
     
     if (!file_exists($scheduleFile)) {
-        echo '{}';
-    } else {
-        $data = file_get_contents($scheduleFile);
-        echo $data;
+        // Return empty schedule with verification metadata
+        header('Content-Type: application/json');
+        echo json_encode([
+            'data' => [],
+            'verified' => true,
+            'empty' => true,
+            'yearMonth' => $yearMonth
+        ]);
+        return;
     }
+    
+    // Try to read file with retry mechanism (up to 3 attempts)
+    $maxRetries = 3;
+    $data = null;
+    $lastError = '';
+    
+    for ($i = 0; $i < $maxRetries; $i++) {
+        $data = @file_get_contents($scheduleFile);
+        if ($data !== false) {
+            // Verify JSON is valid
+            $decoded = json_decode($data, true);
+            if (json_last_error() === JSON_ERROR_NONE || $data === '{}' || $data === '[]') {
+                // Return data with verification metadata
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'data' => $decoded ?? [],
+                    'verified' => true,
+                    'yearMonth' => $yearMonth,
+                    'fileSize' => strlen($data),
+                    'retries' => $i
+                ]);
+                return;
+            } else {
+                $lastError = 'Invalid JSON data';
+            }
+        } else {
+            $lastError = 'Failed to read file';
+        }
+        
+        // Wait briefly before retry
+        if ($i < $maxRetries - 1) {
+            usleep(100000); // 100ms
+        }
+    }
+    
+    // If all retries failed, return error
+    sendErrorResponse('Failed to load schedule data after ' . $maxRetries . ' attempts: ' . $lastError);
 }
 
 /**
