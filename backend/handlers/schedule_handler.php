@@ -156,6 +156,19 @@ function handleSaveSchedule() {
         sendErrorResponse($validation['message']);
     }
     
+    // Validate no weekend bookings
+    $weekendValidation = validateNoWeekendBookings($scheduleData);
+    if (!$weekendValidation['valid']) {
+        // Log the rejected attempt
+        $logDetails = array_merge($changeDetails, [
+            'yearMonth' => $yearMonth,
+            'reason' => 'weekend_booking_attempted'
+        ]);
+        addAuditLog($user, 'schedule_save_rejected', $logDetails);
+        
+        sendErrorResponse($weekendValidation['message']);
+    }
+    
     // Validate data integrity to prevent accidental mass deletion
     $scheduleFile = getScheduleFile($yearMonth);
     $integrityCheck = validateScheduleDataIntegrity($scheduleFile, $scheduleData);

@@ -61,6 +61,51 @@ function validateBookingTimeRange($yearMonth) {
 }
 
 /**
+ * Check if a date is a weekend (Saturday or Sunday)
+ */
+function isWeekend($dateString) {
+    // Parse date string (format: YYYY-MM-DD)
+    $date = new DateTime($dateString);
+    $dayOfWeek = (int)$date->format('N'); // 1 (Monday) through 7 (Sunday)
+    
+    // 6 = Saturday, 7 = Sunday
+    return $dayOfWeek === 6 || $dayOfWeek === 7;
+}
+
+/**
+ * Validate that schedule data doesn't contain weekend bookings
+ */
+function validateNoWeekendBookings($scheduleData) {
+    $weekendBookings = [];
+    
+    foreach ($scheduleData as $dateString => $seats) {
+        if (isWeekend($dateString)) {
+            // Check if there are any non-empty bookings on this weekend day
+            foreach ($seats as $seatNum => $occupant) {
+                if (!empty($occupant) && trim($occupant) !== '') {
+                    $weekendBookings[] = $dateString;
+                    break; // One is enough per date
+                }
+            }
+        }
+    }
+    
+    if (!empty($weekendBookings)) {
+        $dates = array_map(function($d) {
+            $date = new DateTime($d);
+            return $date->format('d.m.Y');
+        }, $weekendBookings);
+        
+        return [
+            'valid' => false,
+            'message' => 'Rezervácia nie je možná cez víkend (sobota a nedeľa). Prosím, vyberte pracovný deň. Rezervácie na víkendové dni: ' . implode(', ', $dates)
+        ];
+    }
+    
+    return ['valid' => true];
+}
+
+/**
  * Validate JSON input
  */
 function validateJsonInput($input) {

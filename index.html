@@ -10,6 +10,10 @@
     :root { --bg:#f6f8fb; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --shadow: 0 10px 30px rgba(2,6,23,.06); --holiday:#f3f4f6; --holiday-text:#9ca3af; --free:#ecfdf5; --free-border:#86efac; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; overflow-x:hidden; }
+    /* 90% zoom for screens with high DPI/zoom (typically 150% browser default) */
+    @media screen and (min-resolution: 144dpi) and (max-width: 1600px) {
+      body { zoom: 0.9; }
+    }
     .container { max-width: 100%; margin: 0 auto; padding: 16px; } /* širšie, aby sa zmestilo 7×180px + medzery */
     header.sticky { position: sticky; top:0; background: rgba(255,255,255,.9); border-bottom:1px solid var(--border); z-index:10; backdrop-filter: blur(6px); }
     .weekday-header { position: sticky; top: 60px; background: rgba(255,255,255,.95); z-index: 9; padding: 4px 0; backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
@@ -140,7 +144,7 @@
     .team-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:4px 8px; margin:4px; background:#fff; }
     .team-chip button { border:0; background:transparent; cursor:pointer; font-weight:700; color:#ef4444; }
     /* Notification popup */
-    .notification { position: fixed; top: 80px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3); z-index: 100; display: none; align-items: center; gap: 10px; animation: slideIn 0.3s ease-out; }
+    .notification { position: fixed; top: 80px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3); z-index: 100; display: none; align-items: center; gap: 10px; animation: slideIn 0.3s ease-out; max-width: 500px; font-size: 14px; line-height: 1.4; }
     .notification.show { display: flex; }
     .notification.error { background: #ef4444; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3); }
     @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -554,12 +558,15 @@
       if (isError) notif.classList.add("error");
       notif.classList.remove("hiding");
       notif.classList.add("show");
+      
+      // Show errors for longer (6 seconds) to give time to read the message
+      var displayTime = isError ? 6000 : 3000;
       setTimeout(function() {
         notif.classList.add("hiding");
         setTimeout(function() {
           notif.classList.remove("show", "hiding");
         }, 300);
-      }, 3000);
+      }, displayTime);
     }
     
     // Server API functions
@@ -810,12 +817,19 @@
       })
       .catch(function(err){ 
         console.error('Error saving schedule:', err); 
-        // Check if it's a file permission error
-        if (err && err.message) {
+        // Check if it's an error from backend validation
+        if (err && err.error) {
+          // Backend returned a detailed error message
+          showNotification("✗ " + err.error, true);
+        } else if (err && err.message) {
           showNotification("✗ " + err.message, true);
         } else {
           showNotification("✗ Chyba pri ukladaní!", true);
         }
+        // Reload data to ensure UI is in sync with server
+        loadData(ui.year, ui.month, function() {
+          render();
+        });
       });
     }
     
