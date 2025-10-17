@@ -38,11 +38,11 @@ function handleGetSchedule() {
         if ($data !== false) {
             // Verify JSON is valid
             $decoded = json_decode($data, true);
-            if ($decoded !== null || $data === '{}' || $data === '[]') {
+            if (json_last_error() === JSON_ERROR_NONE || $data === '{}' || $data === '[]') {
                 // Return data with verification metadata
                 header('Content-Type: application/json');
                 echo json_encode([
-                    'data' => $decoded ?: [],
+                    'data' => $decoded ?? [],
                     'verified' => true,
                     'yearMonth' => $yearMonth,
                     'fileSize' => strlen($data),

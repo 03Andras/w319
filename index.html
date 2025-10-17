@@ -861,9 +861,9 @@
         return;
       }
       
-      // Retry logic for loading data (up to 3 attempts)
+      // Retry logic for loading data (up to 3 attempts with exponential backoff)
       var maxRetries = 3;
-      var retryDelay = 200; // ms
+      var retryDelay = 200; // ms base delay
       
       function attemptLoad(attemptNum) {
         fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
@@ -891,10 +891,11 @@
           .catch(function(err){ 
             console.error('Error loading schedule (attempt ' + attemptNum + '/' + maxRetries + '):', err);
             if (attemptNum < maxRetries) {
-              // Retry after delay
+              // Retry after exponential backoff delay
+              var delay = retryDelay * Math.pow(2, attemptNum - 1);
               setTimeout(function() {
                 attemptLoad(attemptNum + 1);
-              }, retryDelay * attemptNum); // Exponential backoff
+              }, delay);
             } else {
               // All retries failed, use empty schedule
               console.error('Failed to load schedule after ' + maxRetries + ' attempts');
