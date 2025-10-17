@@ -67,7 +67,7 @@ function validateScheduleDataIntegrity($scheduleFile, $newScheduleData) {
     
     // Define threshold: reject if more than 80% of bookings would be deleted
     // AND at least 5 bookings would be deleted (to avoid false positives on small datasets)
-    $deletionPercentage = ($existingBookings > 0) ? ($deletedBookings / $existingBookings) * 100 : 0;
+    $deletionPercentage = ($deletedBookings / $existingBookings) * 100;
     
     if ($deletedBookings >= 5 && $deletionPercentage > 80) {
         return [

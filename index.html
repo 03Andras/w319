@@ -791,14 +791,13 @@
       var currentDate = new Date();
       var targetDate = new Date(year, month, 1);
       
-      // Calculate limit: first of next month + 3 months
-      var threeMonthsAhead = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
-      threeMonthsAhead.setHours(0, 0, 0, 0);
+      // Calculate booking limit
+      var bookingLimit = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      bookingLimit.setMonth(bookingLimit.getMonth() + 3);
+      bookingLimit.setHours(0, 0, 0, 0);
       
-      if (targetDate >= threeMonthsAhead && !isAdmin()) {
-        // Calculate when this specific month becomes available
-        // It becomes available on the 1st of the month that is 3 months before target
+      if (targetDate >= bookingLimit && !isAdmin()) {
+        // Calculate when this specific month becomes available for booking
         var availableDate = new Date(year, month, 1);
         availableDate.setMonth(availableDate.getMonth() - 3);
         availableDate.setDate(1);
@@ -1056,17 +1055,18 @@
       var currentDate = new Date();
       var targetDate = new Date(ui.year, ui.month, 1);
       
-      // Calculate the limit: first day of next month + 3 more months = 4 months ahead total
-      // This means we can book current month + 3 future months
-      var threeMonthsAhead = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
-      threeMonthsAhead.setHours(0, 0, 0, 0);
+      // Calculate booking limit: first of next month + 3 months
+      // Example: If today is Oct 17, limit is Nov 1 + 3 months = Feb 1
+      // This allows booking: current month (Oct) + next 3 months (Nov, Dec, Jan)
+      var bookingLimit = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      bookingLimit.setMonth(bookingLimit.getMonth() + 3);
+      bookingLimit.setHours(0, 0, 0, 0);
       
-      var isTooFarAhead = targetDate >= threeMonthsAhead && !isAdmin();
+      var isTooFarAhead = targetDate >= bookingLimit && !isAdmin();
       
       // If month is too far ahead, show warning at top of calendar
       if (isTooFarAhead) {
-        // Calculate when this specific month becomes available
+        // Calculate when this specific month becomes available for booking
         var availableDate = new Date(ui.year, ui.month, 1);
         availableDate.setMonth(availableDate.getMonth() - 3);
         availableDate.setDate(1);
@@ -1083,7 +1083,7 @@
         warningDiv.style.fontWeight = "600";
         warningDiv.style.fontSize = "16px";
         warningDiv.style.marginBottom = "12px";
-        warningDiv.innerHTML = "⚠️ Rezervácia na tento mesiac bude dostupná od " + formattedDate;
+        warningDiv.innerHTML = "⚠️ Tento mesiac je zobrazený, ale rezervácie budú dostupné až od " + formattedDate;
         cal.appendChild(warningDiv);
       }
       
