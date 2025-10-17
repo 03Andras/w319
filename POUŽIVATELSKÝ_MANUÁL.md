@@ -23,18 +23,14 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ### Rezervácia pre seba
 
-1. V kalendári kliknite na deň, kedy chcete prísť do kancelárie
-2. Otvorí sa okno s detailom dňa a dostupnými stolmi
-3. Kliknite na tlačidlo **„Obsadiť"** pri voľnom stole
-4. Rezervácia sa automaticky uloží
+Stačí kliknuť na deň a zarezervujete stôl.
 
 ### Rezervácia pre kolegu
 
-1. V kalendári kliknite na deň, kedy chcete rezervovať pre kolegu
-2. V otvorenom okne **zaškrtnite** políčko **„Rezervovať pre iného"**
-3. Z rozbaľovacieho zoznamu **„Vybrať osobu"** vyberte meno kolegu
-4. Kliknite na tlačidlo **„Obsadiť"** pri voľnom stole
-5. Rezervácia sa vytvorí na meno kolegu
+1. Kliknite na deň
+2. Zaškrtnite **„Rezervovať pre iného"**
+3. Vyberte meno kolegu
+4. Kliknite **„Obsadiť"** pri voľnom stole
 
 ---
 
@@ -42,9 +38,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ### Zrušenie vlastnej rezervácie
 
-1. V kalendári kliknite na deň s vašou rezerváciou a tlačidlo **„Zmeniť"**
-2. V otvorenom okne kliknite na tlačidlo **„Zrušiť"** pri vašej rezervácii
-3. Rezervácia bude okamžite odstránená
+Stačí kliknuť na deň a zrušíte rezerváciu.
 
 **Môžete zrušiť:**
 - Akúkoľvek rezerváciu **na vaše meno**

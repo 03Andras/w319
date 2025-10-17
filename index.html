@@ -571,7 +571,10 @@
     
     // Server API functions
     function loadSettings(callback){ 
-      fetch('api.php?action=getSettings')
+      fetch('api.php?action=getSettings', {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){ callback(data); })
         .catch(function(){ callback({ ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) }); });
@@ -583,7 +586,9 @@
       fetch('api.php?action=saveSettings', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
+        body: JSON.stringify(dataToSave),
+        redirect: 'follow',
+        credentials: 'same-origin'
       })
       .then(function(res){ 
         if (!res.ok) {
@@ -603,7 +608,10 @@
     }
     
     function loadAuditLog(callback) {
-      fetch('api.php?action=getAuditLog')
+      fetch('api.php?action=getAuditLog', {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){ callback(data); })
         .catch(function(){ callback([]); });
@@ -662,7 +670,9 @@
       fetch('api.php?action=registerSession', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({userName: userName, sessionId: sessionId})
+        body: JSON.stringify({userName: userName, sessionId: sessionId}),
+        redirect: 'follow',
+        credentials: 'same-origin'
       })
       .then(function(res){ return res.json(); })
       .catch(function(err){ console.error('Error registering session:', err); });
@@ -671,7 +681,10 @@
     // Check if session is still active
     function checkSession() {
       var sessionId = getSessionId();
-      fetch('api.php?action=checkSession&sessionId=' + encodeURIComponent(sessionId))
+      fetch('api.php?action=checkSession&sessionId=' + encodeURIComponent(sessionId), {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){ 
           if (!data.active) {
@@ -787,7 +800,9 @@
       fetch('api.php?action=saveSchedule', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dataToSave)
+        body: JSON.stringify(dataToSave),
+        redirect: 'follow',
+        credentials: 'same-origin'
       })
       .then(function(res){ 
         if (!res.ok) {
@@ -835,7 +850,10 @@
     
     function selfCheckData(yearMonth, callback) {
       // Verify that data was actually saved to JSON
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){ 
           var isMatch = JSON.stringify(data) === JSON.stringify(schedule);
@@ -880,7 +898,10 @@
       var retryDelay = 200; // ms base delay
       
       function attemptLoad(attemptNum) {
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
+          redirect: 'follow',
+          credentials: 'same-origin'
+        })
           .then(function(res){ 
             if (!res.ok) {
               throw new Error('HTTP error ' + res.status);
@@ -1699,7 +1720,9 @@
             fetch('api.php?action=disconnectUser', {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName()})
+              body: JSON.stringify({userToDisconnect: name, adminUser: myCurrentName()}),
+              redirect: 'follow',
+              credentials: 'same-origin'
             })
             .then(function(res){ return res.json(); })
             .then(function(data){ 
@@ -1824,7 +1847,10 @@
     }
 
     function renderSessions() {
-      fetch('api.php?action=getSessions')
+      fetch('api.php?action=getSessions', {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(sessions) {
           var tbody = document.getElementById("sessions-table-body");
@@ -1929,7 +1955,9 @@
         body: JSON.stringify({
           user: myCurrentName(),
           action: 'password_change'
-        })
+        }),
+        redirect: 'follow',
+        credentials: 'same-origin'
       });
       
       showNotification("✓ Admin heslo bolo zmenené!", false);
@@ -2116,7 +2144,10 @@
     
     // Data Management handlers
     document.getElementById("export-settings-btn").onclick=function(){
-      fetch('api.php?action=getSettings')
+      fetch('api.php?action=getSettings', {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
@@ -2138,7 +2169,10 @@
     document.getElementById("export-schedule-btn").onclick=function(){
       // Export all schedule files as a single JSON
       var yearMonth = getYearMonth(ui.year, ui.month);
-      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+      fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){
           var dataStr = JSON.stringify(data, null, 2);
@@ -2201,7 +2235,9 @@
             body: JSON.stringify({
               user: myCurrentName(),
               ...importedSettings
-            })
+            }),
+            redirect: 'follow',
+            credentials: 'same-origin'
           })
           .then(function(res){ return res.json(); })
           .then(function(response){
@@ -2256,7 +2292,10 @@
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(function() {
         var yearMonth = getYearMonth(ui.year, ui.month);
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth)
+        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
+          redirect: 'follow',
+          credentials: 'same-origin'
+        })
           .then(function(res){ 
             if (!res.ok) throw new Error('HTTP error ' + res.status);
             return res.json(); 
@@ -2453,7 +2492,10 @@
       }
       
       // Fetch PIN from API
-      fetch('api.php?action=getPinCode')
+      fetch('api.php?action=getPinCode', {
+        redirect: 'follow',
+        credentials: 'same-origin'
+      })
         .then(function(res){ return res.json(); })
         .then(function(data){ 
           correctPin = data.pinCode || '147258369';
