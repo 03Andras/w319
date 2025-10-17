@@ -16,6 +16,9 @@ function handleGetSchedule() {
     
     $scheduleFile = getScheduleFile($yearMonth);
     
+    // Ensure data directory exists and is writable
+    ensureDataDirectory();
+    
     if (!file_exists($scheduleFile)) {
         // Return empty schedule with verification metadata
         header('Content-Type: application/json');
@@ -34,6 +37,20 @@ function handleGetSchedule() {
     $lastError = '';
     
     for ($i = 0; $i < $maxRetries; $i++) {
+        // Check if file still exists (could have been deleted between checks)
+        if (!file_exists($scheduleFile)) {
+            // File was deleted, return empty schedule
+            header('Content-Type: application/json');
+            echo json_encode([
+                'data' => [],
+                'verified' => true,
+                'empty' => true,
+                'yearMonth' => $yearMonth,
+                'note' => 'File was deleted during read'
+            ]);
+            return;
+        }
+        
         $data = @file_get_contents($scheduleFile);
         if ($data !== false) {
             // Verify JSON is valid
@@ -50,10 +67,13 @@ function handleGetSchedule() {
                 ]);
                 return;
             } else {
-                $lastError = 'Invalid JSON data';
+                $lastError = 'Invalid JSON data: ' . json_last_error_msg();
+                // Try to repair the file by returning empty and logging
+                error_log("Schedule file $scheduleFile has invalid JSON: " . json_last_error_msg());
             }
         } else {
             $lastError = 'Failed to read file';
+            error_log("Failed to read schedule file $scheduleFile on attempt " . ($i + 1));
         }
         
         // Wait briefly before retry
@@ -62,8 +82,8 @@ function handleGetSchedule() {
         }
     }
     
-    // If all retries failed, return error
-    sendErrorResponse('Failed to load schedule data after ' . $maxRetries . ' attempts: ' . $lastError);
+    // If all retries failed, return error with Slovak message
+    sendErrorResponse('Nepodarilo sa načítať dáta rozvrhu po ' . $maxRetries . ' pokusoch: ' . $lastError, 500);
 }
 
 /**
