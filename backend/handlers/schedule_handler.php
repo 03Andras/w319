@@ -25,6 +25,70 @@ function handleGetSchedule() {
 }
 
 /**
+ * Count non-empty bookings in schedule data
+ */
+function countBookings($scheduleData) {
+    $count = 0;
+    foreach ($scheduleData as $date => $seats) {
+        if (is_array($seats)) {
+            foreach ($seats as $seatNum => $occupant) {
+                if (!empty($occupant) && trim($occupant) !== '') {
+                    $count++;
+                }
+            }
+        }
+    }
+    return $count;
+}
+
+/**
+ * Validate that new schedule data doesn't accidentally delete too many bookings
+ */
+function validateScheduleDataIntegrity($scheduleFile, $newScheduleData) {
+    // If file doesn't exist, any data is acceptable (first save)
+    if (!file_exists($scheduleFile)) {
+        return ['valid' => true];
+    }
+    
+    // Load existing schedule
+    $existingData = readJsonFile($scheduleFile, []);
+    
+    // Count bookings in both datasets
+    $existingBookings = countBookings($existingData);
+    $newBookings = countBookings($newScheduleData);
+    
+    // If there are no existing bookings, accept the new data
+    if ($existingBookings === 0) {
+        return ['valid' => true];
+    }
+    
+    // Calculate how many bookings would be deleted
+    $deletedBookings = $existingBookings - $newBookings;
+    
+    // Define threshold: reject if more than 80% of bookings would be deleted
+    // AND at least 5 bookings would be deleted (to avoid false positives on small datasets)
+    $deletionPercentage = ($deletedBookings / $existingBookings) * 100;
+    
+    if ($deletedBookings >= 5 && $deletionPercentage > 80) {
+        return [
+            'valid' => false,
+            'message' => sprintf(
+                'Operácia zamietnutá: Pokus o zmazanie príliš veľa rezervácií (%d z %d, %.1f%%). ' .
+                'Toto môže byť spôsobené chybou pri načítaní dát. Prosím, obnovte stránku a skúste znova.',
+                $deletedBookings,
+                $existingBookings,
+                $deletionPercentage
+            ),
+            'existingBookings' => $existingBookings,
+            'newBookings' => $newBookings,
+            'deletedBookings' => $deletedBookings
+        ];
+    }
+    
+    return ['valid' => true];
+}
+
+/**
  * Handle saveSchedule action
  */
 function handleSaveSchedule() {
@@ -50,8 +114,24 @@ function handleSaveSchedule() {
         sendErrorResponse($validation['message']);
     }
     
-    // Save new schedule
+    // Validate data integrity to prevent accidental mass deletion
     $scheduleFile = getScheduleFile($yearMonth);
+    $integrityCheck = validateScheduleDataIntegrity($scheduleFile, $scheduleData);
+    if (!$integrityCheck['valid']) {
+        // Log the rejected attempt for security audit
+        $logDetails = array_merge($changeDetails, [
+            'yearMonth' => $yearMonth,
+            'reason' => 'data_integrity_violation',
+            'existingBookings' => $integrityCheck['existingBookings'] ?? 0,
+            'newBookings' => $integrityCheck['newBookings'] ?? 0,
+            'deletedBookings' => $integrityCheck['deletedBookings'] ?? 0
+        ]);
+        addAuditLog($user, 'schedule_save_rejected', $logDetails);
+        
+        sendErrorResponse($integrityCheck['message']);
+    }
+    
+    // Save new schedule
     writeJsonFile($scheduleFile, $scheduleData);
     
     // Add detailed audit log

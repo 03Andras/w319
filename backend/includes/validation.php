@@ -34,10 +34,10 @@ function validateBookingTimeRange($yearMonth) {
     $targetYear = (int)substr($yearMonth, 0, 4);
     $targetMonth = (int)substr($yearMonth, 4, 2);
     
-    // Calculate the first of next month, then add 2 more months (total 3 ahead)
+    // Calculate limit: first of next month + 3 months = can book current + 3 future months
     $threeMonthsAhead = new DateTime();
     $threeMonthsAhead->setDate($currentDate->format('Y'), $currentDate->format('n') + 1, 1);
-    $threeMonthsAhead->modify('+2 months');
+    $threeMonthsAhead->modify('+3 months');
     $threeMonthsAhead->setTime(0, 0, 0);
     
     $targetDate = new DateTime();
