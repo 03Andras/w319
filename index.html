@@ -687,26 +687,35 @@
       var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
       var monthName = monthNames[monthIndex] || 'mesiac';
       
-      console.log('Načítanie dát pre ' + monthName + ' ' + year + ' zlyhalo. Pokus ' + retryCount + '/10. Čistenie cache a opätovné načítanie...');
+      var message = 'Načítanie dát pre ' + monthName + ' ' + year + ' zlyhalo. Pokus ' + retryCount + '/10. Čistenie cache a opätovné načítanie...';
+      console.log(message);
+      
+      // Show notification to user before reloading
+      if (typeof showNotification === 'function') {
+        showNotification('⟳ ' + message, true);
+      }
       
       // Increment retry counter before reload
       incrementLoadRetryCount(yearMonth);
       
-      // Clear browser cache and reload
-      // Use cache-busting technique by adding timestamp to reload
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          for (var i = 0; i < names.length; i++) {
-            caches.delete(names[i]);
-          }
-        }).finally(function() {
-          // Force reload from server, bypassing cache
+      // Delay reload slightly to allow user to see notification
+      setTimeout(function() {
+        // Clear browser cache and reload
+        // Use cache-busting technique by adding timestamp to reload
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var i = 0; i < names.length; i++) {
+              caches.delete(names[i]);
+            }
+          }).finally(function() {
+            // Force reload from server, bypassing cache
+            window.location.reload(true);
+          });
+        } else {
+          // For browsers that don't support Cache API, just do a hard reload
           window.location.reload(true);
-        });
-      } else {
-        // For browsers that don't support Cache API, just do a hard reload
-        window.location.reload(true);
-      }
+        }
+      }, 1500); // 1.5 second delay to show notification
     }
 
     // Generate unique session ID
@@ -2536,6 +2545,20 @@
     }
     
     // Load settings and data from server
+    // Check if we're recovering from a failed load attempt
+    (function checkRetryState() {
+      var yearMonth = getYearMonth(ui.year, ui.month);
+      var retryCount = getLoadRetryCount(yearMonth);
+      if (retryCount > 0) {
+        var monthNames = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 
+                          'júl', 'august', 'september', 'október', 'november', 'december'];
+        var year = yearMonth.substring(0, 4);
+        var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
+        var monthName = monthNames[monthIndex] || 'mesiac';
+        console.log('Opätovný pokus načítania dát pre ' + monthName + ' ' + year + ' (pokus ' + (retryCount + 1) + '/10)');
+      }
+    })();
+    
     loadSettings(function(loadedSettings){
       settings = loadedSettings;
       team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
