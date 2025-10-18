@@ -623,6 +623,16 @@
     var currentYearMonth = "";
     var pollingInterval = null;
     
+    // Constants for retry logic
+    var MAX_TOTAL_RETRIES = 10; // Maximum retry attempts across page reloads
+    var MAX_IN_PAGE_RETRIES = 3; // Maximum retry attempts per page load
+    var NOTIFICATION_DELAY_MS = 1500; // Delay before page reload to show notification
+    var RETRY_EXPIRY_MS = 5 * 60 * 1000; // Retry counter expires after 5 minutes
+    
+    // Slovak month names for error messages
+    var MONTH_NAMES_SK = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 
+                          'júl', 'august', 'september', 'október', 'november', 'december'];
+    
     // Cookie management
     function setCookie(name, value, days) {
       var expires = "";
@@ -647,6 +657,73 @@
     
     function eraseCookie(name) {
       document.cookie = name + '=; Max-Age=-99999999;';
+    }
+
+    // Retry management for page reloads
+    function getLoadRetryCount(yearMonth) {
+      var key = 'loadRetry_' + yearMonth;
+      var stored = localStorage.getItem(key);
+      if (!stored) return 0;
+      var data = JSON.parse(stored);
+      // Check if retry is from last 5 minutes (stale retries should be reset)
+      var age = Date.now() - data.timestamp;
+      if (age > RETRY_EXPIRY_MS) {
+        localStorage.removeItem(key);
+        return 0;
+      }
+      return data.count || 0;
+    }
+
+    function incrementLoadRetryCount(yearMonth) {
+      var key = 'loadRetry_' + yearMonth;
+      var count = getLoadRetryCount(yearMonth) + 1;
+      localStorage.setItem(key, JSON.stringify({
+        count: count,
+        timestamp: Date.now()
+      }));
+      return count;
+    }
+
+    function clearLoadRetryCount(yearMonth) {
+      var key = 'loadRetry_' + yearMonth;
+      localStorage.removeItem(key);
+    }
+
+    function clearCacheAndReload(yearMonth, retryCount) {
+      // Show retry message in Slovak
+      var year = yearMonth.substring(0, 4);
+      var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
+      var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
+      
+      var message = 'Načítanie dát pre ' + monthName + ' ' + year + ' zlyhalo. Pokus ' + retryCount + '/' + MAX_TOTAL_RETRIES + '. Čistenie cache a opätovné načítanie...';
+      console.log(message);
+      
+      // Show notification to user before reloading
+      if (typeof showNotification === 'function') {
+        showNotification('⟳ ' + message, true);
+      }
+      
+      // Increment retry counter before reload
+      incrementLoadRetryCount(yearMonth);
+      
+      // Delay reload slightly to allow user to see notification
+      setTimeout(function() {
+        // Clear browser cache and reload
+        // Use cache-busting technique by adding timestamp to reload
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var i = 0; i < names.length; i++) {
+              caches.delete(names[i]);
+            }
+          }).finally(function() {
+            // Force reload from server, bypassing cache
+            window.location.reload(true);
+          });
+        } else {
+          // For browsers that don't support Cache API, just do a hard reload
+          window.location.reload(true);
+        }
+      }, NOTIFICATION_DELAY_MS);
     }
 
     // Generate unique session ID
@@ -893,14 +970,17 @@
         return;
       }
       
-      // Retry logic for loading data (up to 3 attempts with exponential backoff)
-      var maxRetries = 3;
+      // Check current retry count across page reloads
+      var pageReloadRetries = getLoadRetryCount(yearMonth);
+      
+      // Retry logic for loading data
       var retryDelay = 200; // ms base delay
       
       function attemptLoad(attemptNum) {
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
+        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth + '&_t=' + Date.now(), {
           redirect: 'follow',
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          cache: 'no-cache'
         })
           .then(function(res){ 
             if (!res.ok) {
@@ -919,25 +999,45 @@
               }
             }
             
+            // Success! Clear retry counter
+            clearLoadRetryCount(yearMonth);
+            
             schedule = data || {}; 
             scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
             if(callback) callback(); 
           })
           .catch(function(err){ 
-            console.error('Error loading schedule (attempt ' + attemptNum + '/' + maxRetries + '):', err);
-            if (attemptNum < maxRetries) {
-              // Retry after exponential backoff delay
+            console.error('Error loading schedule (attempt ' + attemptNum + '/' + MAX_IN_PAGE_RETRIES + ', celkovo ' + (pageReloadRetries + 1) + '/' + MAX_TOTAL_RETRIES + '):', err);
+            
+            if (attemptNum < MAX_IN_PAGE_RETRIES) {
+              // Retry within same page load after exponential backoff delay
               var delay = retryDelay * Math.pow(2, attemptNum - 1);
               setTimeout(function() {
                 attemptLoad(attemptNum + 1);
               }, delay);
             } else {
-              // All retries failed, use empty schedule
-              console.error('Failed to load schedule after ' + maxRetries + ' attempts');
-              showNotification('✗ Nepodarilo sa načítať dáta. Obnovte stránku.', true);
-              schedule = {}; 
-              scheduleCache[yearMonth] = {};
-              if(callback) callback(); 
+              // All in-page retries failed
+              var totalRetries = pageReloadRetries + 1;
+              
+              if (totalRetries >= MAX_TOTAL_RETRIES) {
+                // Maximum total retries reached - stop and show error
+                clearLoadRetryCount(yearMonth);
+                
+                var year = yearMonth.substring(0, 4);
+                var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
+                var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
+                
+                var errorMsg = '✗ Nepodarilo sa načítať dáta pre ' + monthName + ' ' + year + ' po ' + MAX_TOTAL_RETRIES + ' pokusoch. Skontrolujte pripojenie k serveru alebo skúste neskôr.';
+                showNotification(errorMsg, true);
+                console.error('Failed to load schedule after ' + MAX_TOTAL_RETRIES + ' total attempts (including page reloads)');
+                
+                schedule = {}; 
+                scheduleCache[yearMonth] = {};
+                if(callback) callback();
+              } else {
+                // Try cache clearing and page reload
+                clearCacheAndReload(yearMonth, totalRetries);
+              }
             }
           });
       }
@@ -2449,6 +2549,18 @@
     }
     
     // Load settings and data from server
+    // Check if we're recovering from a failed load attempt
+    (function checkRetryState() {
+      var yearMonth = getYearMonth(ui.year, ui.month);
+      var retryCount = getLoadRetryCount(yearMonth);
+      if (retryCount > 0) {
+        var year = yearMonth.substring(0, 4);
+        var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
+        var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
+        console.log('Opätovný pokus načítania dát pre ' + monthName + ' ' + year + ' (pokus ' + (retryCount + 1) + '/' + MAX_TOTAL_RETRIES + ')');
+      }
+    })();
+    
     loadSettings(function(loadedSettings){
       settings = loadedSettings;
       team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
