@@ -66,7 +66,20 @@ Aplikácia využíva cookies pre uchovanie vašich preferencií a session inform
 ```
 /
 ├── index.html          # Hlavný HTML súbor aplikácie (obsahuje všetko potrebné)
-├── api.php            # PHP API pre ukladanie a načítanie dát (backend)
+├── api.php            # Vstupný bod API - router pre backend
+├── backend/           # Modulárny backend (organizovaný do modulov)
+│   ├── config/        # Konfigurácia systému
+│   │   └── config.php
+│   ├── includes/      # Pomocné funkcie
+│   │   ├── file_operations.php
+│   │   ├── validation.php
+│   │   ├── audit_log.php
+│   │   └── session_management.php
+│   └── handlers/      # Obsluha jednotlivých API akcií
+│       ├── schedule_handler.php
+│       ├── settings_handler.php
+│       ├── audit_log_handler.php
+│       └── session_handler.php
 ├── data/              # Adresár pre JSON súbory (vytvára sa automaticky)
 │   ├── .htaccess     # Ochrana pred priamym prístupom
 │   ├── schedule_YYYYMM.json  # Rezervácie stolov pre jednotlivé mesiace
@@ -75,6 +88,25 @@ Aplikácia využíva cookies pre uchovanie vašich preferencií a session inform
 │   └── sessions.json  # Aktívne používateľské sessions
 └── README.md          # Tento súbor
 ```
+
+## Backend architektúra
+
+Backend bol refaktorovaný z monolitického `api.php` súboru do modulárnej štruktúry pre lepšiu udržiavateľnosť a čitateľnosť:
+
+### Organizácia backendu
+
+- **api.php** - Vstupný bod API, ktorý funguje ako router a smeruje požiadavky na príslušné handlery
+- **backend/config/** - Konfiguračné súbory a konštanty systému
+- **backend/includes/** - Pomocné funkcie pre prácu so súbormi, validáciu, audit log a správu sessions
+- **backend/handlers/** - Obsluha jednotlivých API akcií (schedule, settings, audit log, sessions)
+
+### Výhody modulárnej štruktúry
+
+1. **Modularita** - Každý komponent má jasnú zodpovednosť
+2. **Udržiavateľnosť** - Ľahké vyhľadanie a úprava špecifickej funkcionality
+3. **Čitateľnosť** - Prehľadná organizácia uľahčuje pochopenie kódu
+4. **Rozšíriteľnosť** - Pridávanie nových funkcií je jednoduché
+5. **Spätná kompatibilita** - Frontend funguje bez zmien, všetky API endpointy sú zachované
 
 ## Hlavné funkcie aplikácie
 
@@ -199,7 +231,7 @@ Táto aplikácia je **samostatná** a **nevyžaduje žiadne externé JavaScript 
 - ✅ Žiadne NPM balíčky
 - ✅ Žiadne závislosti
 
-Všetko je napísané v čistom (vanilla) HTML, CSS a JavaScripte. PHP súbor `api.php` tiež nepoužíva žiadne externé knižnice - len štandardné PHP funkcie.
+Všetko je napísané v čistom (vanilla) HTML, CSS a JavaScripte. Backend (modulárna PHP štruktúra) tiež nepoužíva žiadne externé knižnice - len štandardné PHP funkcie.
 
 ## Odporúčania pre nasadenie
 
