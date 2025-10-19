@@ -42,3 +42,10 @@ function handleGetPinCode() {
     $pinCode = $settings['pinCode'] ?? DEFAULT_PIN_CODE;
     sendSuccessResponse(['pinCode' => $pinCode]);
 }
+
+/**
+ * Handle getVersion action
+ */
+function handleGetVersion() {
+    sendSuccessResponse(['version' => APP_VERSION]);
+}

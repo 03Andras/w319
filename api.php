@@ -75,6 +75,10 @@ switch ($action) {
         handleGetPinCode();
         break;
     
+    case 'getVersion':
+        handleGetVersion();
+        break;
+    
     default:
         sendErrorResponse('Invalid action');
         break;
