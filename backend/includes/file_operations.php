@@ -47,7 +47,8 @@ function initializeSettingsFile() {
             'adminPassword' => DEFAULT_ADMIN_PASSWORD,
             'pinCode' => DEFAULT_PIN_CODE,
             'connectedUsers' => [],
-            'team' => $DEFAULT_TEAM
+            'team' => $DEFAULT_TEAM,
+            'workingDayOverrides' => []
         ];
         if (@file_put_contents(SETTINGS_FILE, json_encode($defaultSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
             handleFileError(SETTINGS_FILE, 'create');

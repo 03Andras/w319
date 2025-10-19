@@ -441,6 +441,20 @@
           <button class="btn" id="open-sessions-from-settings">Otvoriť Session</button>
         </div>
         
+        <div id="working-day-overrides-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0fdf4;">
+          <div style="font-weight:600; margin-bottom:8px;">Pracovné dni (Výnimky)</div>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Nastavte sviatky alebo víkendy ako pracovné dni. Tieto dni budú dostupné na rezerváciu.</div>
+          
+          <div id="working-day-overrides-list" style="margin-bottom:12px; max-height:200px; overflow-y:auto;">
+            <div class="muted" style="font-size:12px;">Žiadne výnimky</div>
+          </div>
+          
+          <div class="row" style="gap:6px; flex-wrap:wrap;">
+            <input type="date" id="working-day-override-date" style="width:160px;" />
+            <button class="btn" id="add-working-day-override">Pridať pracovný deň</button>
+          </div>
+        </div>
+        
         <div id="team-management" style="margin-top:10px;">
           <table class="team-table">
             <thead>
@@ -819,7 +833,7 @@
         });
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT), workingDayOverrides:[] };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
@@ -982,7 +996,16 @@
       if(d.toDateString()===easterMonday.toDateString()) return true;
       return false;
     }
-    function isNonWorking(d){ return isWeekend(d) || isHoliday(d); }
+    function isNonWorking(d){ 
+      var dateStr = fmtDate(d);
+      // Check if this day is overridden as a working day
+      if (settings.workingDayOverrides && Array.isArray(settings.workingDayOverrides)) {
+        if (settings.workingDayOverrides.indexOf(dateStr) !== -1) {
+          return false; // This day is set as working, even if it's a weekend/holiday
+        }
+      }
+      return isWeekend(d) || isHoliday(d); 
+    }
 
     function getDaySeats(dateStr){
       var rec = schedule[dateStr];
@@ -1456,6 +1479,7 @@
         var cell=document.createElement("div"); cell.className="day"; cell.setAttribute("role","button"); cell.tabIndex=0;
         var nonWork = isNonWorking(dt);
         var isPast = isPastDate(dStr);
+        var isOverridden = (isWeekend(dt) || isHoliday(dt)) && !nonWork; // Was a holiday/weekend but now is working
         
         // If month is too far ahead, treat all days as disabled (grayed out)
         if(isTooFarAhead){
@@ -1474,6 +1498,16 @@
 
         var top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
         var l=document.createElement("div"); l.style.fontWeight="700"; l.textContent=d+".";
+        
+        // Add override indicator
+        if(isOverridden) {
+          var overrideIndicator = document.createElement("span");
+          overrideIndicator.textContent = " ⚙️";
+          overrideIndicator.title = "Pracovný deň (výnimka)";
+          overrideIndicator.style.fontSize = "11px";
+          l.appendChild(overrideIndicator);
+        }
+        
         var r=document.createElement("div"); r.className="pill"; 
         r.textContent="obs.: "+taken+"/"+DEFAULT_SEATS;
         // If office is full, show in red
@@ -2010,6 +2044,56 @@
       adminListDiv.appendChild(listText);
     }
     
+    function renderWorkingDayOverrides() {
+      var listDiv = document.getElementById("working-day-overrides-list");
+      listDiv.innerHTML = "";
+      
+      if (!settings.workingDayOverrides || settings.workingDayOverrides.length === 0) {
+        listDiv.innerHTML = '<div class="muted" style="font-size:12px;">Žiadne výnimky</div>';
+        return;
+      }
+      
+      // Sort dates
+      var sortedDates = settings.workingDayOverrides.slice().sort();
+      
+      sortedDates.forEach(function(dateStr) {
+        var itemDiv = document.createElement("div");
+        itemDiv.style.padding = "6px 8px";
+        itemDiv.style.marginBottom = "4px";
+        itemDiv.style.border = "1px solid var(--border)";
+        itemDiv.style.borderRadius = "8px";
+        itemDiv.style.background = "#fff";
+        itemDiv.style.display = "flex";
+        itemDiv.style.justifyContent = "space-between";
+        itemDiv.style.alignItems = "center";
+        
+        var date = parseDateStr(dateStr);
+        var dayNames = ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'];
+        var dayName = dayNames[date.getDay()];
+        var formattedDate = date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear();
+        
+        var labelSpan = document.createElement("span");
+        labelSpan.style.fontSize = "13px";
+        labelSpan.innerHTML = "<b>" + formattedDate + "</b> (" + dayName + ")";
+        
+        var removeBtn = document.createElement("button");
+        removeBtn.className = "btn";
+        removeBtn.textContent = "Odstrániť";
+        removeBtn.style.fontSize = "11px";
+        removeBtn.style.padding = "4px 8px";
+        removeBtn.onclick = function() {
+          if (!confirm("Odstrániť tento pracovný deň?")) return;
+          settings.workingDayOverrides = settings.workingDayOverrides.filter(function(d) { return d !== dateStr; });
+          renderWorkingDayOverrides();
+        };
+        
+        itemDiv.appendChild(labelSpan);
+        itemDiv.appendChild(removeBtn);
+        listDiv.appendChild(itemDiv);
+      });
+    }
+    
+    
     function renderOwnerDropdown() {
       var ownerSelect = document.getElementById("owner-name");
       ownerSelect.innerHTML = '<option value="">-- Vyberte vlastníka --</option>';
@@ -2213,6 +2297,48 @@
       renderSessions();
     };
 
+    document.getElementById("add-working-day-override").onclick=function(){
+      var dateInput = document.getElementById("working-day-override-date");
+      var dateValue = dateInput.value;
+      
+      if (!dateValue) {
+        alert("Prosím, vyberte dátum.");
+        return;
+      }
+      
+      // Convert YYYY-MM-DD to our format
+      var parts = dateValue.split('-');
+      var dateStr = parts[0] + '-' + parts[1] + '-' + parts[2];
+      var date = parseDateStr(dateStr);
+      
+      // Check if it's actually a weekend or holiday
+      if (!isWeekend(date) && !isHoliday(date)) {
+        alert("Tento deň už je pracovný deň. Výnimky sa pridávajú len pre víkendy a sviatky.");
+        return;
+      }
+      
+      // Initialize array if needed
+      if (!settings.workingDayOverrides) {
+        settings.workingDayOverrides = [];
+      }
+      
+      // Check if already exists
+      if (settings.workingDayOverrides.indexOf(dateStr) !== -1) {
+        alert("Tento deň je už pridaný ako pracovný deň.");
+        return;
+      }
+      
+      // Add the override
+      settings.workingDayOverrides.push(dateStr);
+      
+      // Clear input
+      dateInput.value = "";
+      
+      // Re-render
+      renderWorkingDayOverrides();
+      showNotification("✓ Pracovný deň pridaný!", false);
+    };
+
     // Helper function to check if user can view a specific month
     function canViewMonth(year, month) {
       if (isAdmin()) return true;
@@ -2342,11 +2468,13 @@
       document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
       renderTeamTable();
       renderAdminList();
+      renderWorkingDayOverrides();
       
       // Show/hide admin management and team section header based on permissions
       var adminMgmt = document.getElementById("admin-management");
       var dataMgmt = document.getElementById("data-management");
       var sessionMgmt = document.getElementById("session-management");
+      var workingDayMgmt = document.getElementById("working-day-overrides-management");
       var teamSectionHeader = document.getElementById("team-section-header");
       var passwordInput = document.getElementById("admin-password-input");
       
@@ -2354,6 +2482,7 @@
         adminMgmt.style.display = "block";
         dataMgmt.style.display = "block";
         sessionMgmt.style.display = "block";
+        workingDayMgmt.style.display = "block";
         teamSectionHeader.style.display = "block";
         renderDataFilesList();
         
@@ -2365,6 +2494,7 @@
         adminMgmt.style.display = "none";
         dataMgmt.style.display = "none";
         sessionMgmt.style.display = "none";
+        workingDayMgmt.style.display = "none";
         teamSectionHeader.style.display = "none";
         
         // Keep password hidden for non-admins
