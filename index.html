@@ -22,6 +22,11 @@
     .btn { border:1px solid var(--border); background:#fff; border-radius:12px; padding:8px 12px; cursor:pointer; font-size: 13px; }
     .btn:hover { background:#f3f4f6; }
     .btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+    .btn.primary.modified { background:#dc2626; border-color:#dc2626; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+      50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    }
     .pill { border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size: 11px; }
     input, select { border:1px solid var(--border); border-radius:12px; padding:8px 10px; background:#fff; }
     .muted { color: var(--muted); }
@@ -382,17 +387,63 @@
         <button class="btn" id="close-settings">Zavrieť</button>
       </header>
       <div class="content" style="padding:12px;">
-        <div style="font-weight:600; margin-bottom:6px">Štýl mien v kalendári</div>
-        <label class="row"><input type="radio" name="labelstyle" id="style-surname" checked /> Priezvisko</label>
-        <label class="row"><input type="radio" name="labelstyle" id="style-initials" /> Iniciály</label>
-
-        <div style="height:12px"></div>
+        <!-- 1. Pracovné dni (výnimky) -->
+        <div id="working-day-overrides-management" style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0fdf4;">
+          <div style="font-weight:600; margin-bottom:8px;">Pracovné dni (Výnimky)</div>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Nastavte sviatky alebo víkendy ako pracovné dni. Tieto dni budú dostupné na rezerváciu.</div>
+          
+          <div id="working-day-overrides-list" style="margin-bottom:12px; max-height:200px; overflow-y:auto;">
+            <div class="muted" style="font-size:12px;">Žiadne výnimky</div>
+          </div>
+          
+          <div class="row" style="gap:6px; flex-wrap:wrap;">
+            <input type="date" id="working-day-override-date" style="width:160px;" />
+            <button class="btn" id="add-working-day-override">Pridať pracovný deň</button>
+          </div>
+        </div>
+        
+        <!-- 2. Sviatky -->
+        <div id="holidays-management" style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fef9c3;">
+          <div style="font-weight:600; margin-bottom:8px;">Sviatky (Konfigurácia)</div>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Nastavte, ktoré dni v roku sú sviatky. Tieto dni nebudú dostupné na rezerváciu. Formát: MM-DD (napr. 12-25 pre 25. december). Húsvět sa počíta automaticky.</div>
+          
+          <div id="holidays-list" style="margin-bottom:12px; max-height:200px; overflow-y:auto;">
+            <div class="muted" style="font-size:12px;">Načítavam...</div>
+          </div>
+          
+          <div class="row" style="gap:6px; flex-wrap:wrap;">
+            <input type="text" id="new-holiday-input" placeholder="MM-DD (napr. 01-01)" style="width:160px;" maxlength="5" pattern="\d{2}-\d{2}" aria-label="Dátum sviatku" />
+            <input type="text" id="new-holiday-name-input" placeholder="Názov sviatku (voliteľné)" style="width:200px;" aria-label="Názov sviatku" />
+            <button class="btn" id="add-holiday">Pridať sviatok</button>
+          </div>
+        </div>
+        
+        <!-- 3. Zamestnanci (Employees) -->
         <div id="team-section-header">
-          <div style="font-weight:600; margin-bottom:6px">Členovia tímu</div>
+          <div style="font-weight:600; margin-bottom:6px">Zamestnanci</div>
           <div class="muted" style="font-size:12px; margin-bottom:6px;">Administrátor môže upravovať zoznam členov a nastavenia.</div>
         </div>
         
-        <div id="admin-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fefce8;">
+        <div id="team-management" style="margin-top:10px; margin-bottom: 16px;">
+          <table class="team-table">
+            <thead>
+              <tr>
+                <th>Meno</th>
+                <th>Rola</th>
+                <th id="actions-header">Akcie</th>
+              </tr>
+            </thead>
+            <tbody id="team-table-body"></tbody>
+          </table>
+          
+          <div class="row" style="margin-top:12px;" id="add-member-section">
+            <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
+            <button class="btn" id="add-member">Pridať</button>
+          </div>
+        </div>
+        
+        <!-- 4. Správa administrátorov -->
+        <div id="admin-management" style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fefce8;">
           <div style="font-weight:600; margin-bottom:8px;">Správa administrátorov</div>
           <div class="muted" style="font-size:12px; margin-bottom:8px;">Administrátori môžu upravovať nastavenia a mazať rezervácie.</div>
           
@@ -405,8 +456,9 @@
           </div>
         </div>
         
-        <div id="data-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0f9ff;">
-          <div style="font-weight:600; margin-bottom:8px;">Správa dát (Dáta)</div>
+        <!-- 5. Správa dát -->
+        <div id="data-management" style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0f9ff;">
+          <div style="font-weight:600; margin-bottom:8px;">Správa dát</div>
           <div class="muted" style="font-size:12px; margin-bottom:8px;">Export a import nastavení a rezervácií.</div>
           
           <div style="margin-bottom:12px;">
@@ -435,60 +487,21 @@
           </div>
         </div>
         
-        <div id="session-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #eff6ff;">
+        <!-- 6. Session -->
+        <div id="session-management" style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #eff6ff;">
           <div style="font-weight:600; margin-bottom:8px;">Session</div>
           <div class="muted" style="font-size:12px; margin-bottom:8px;">Zobraziť aktívne používateľské sedenia.</div>
           <button class="btn" id="open-sessions-from-settings">Otvoriť Session</button>
-        </div>
-        
-        <div id="working-day-overrides-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #f0fdf4;">
-          <div style="font-weight:600; margin-bottom:8px;">Pracovné dni (Výnimky)</div>
-          <div class="muted" style="font-size:12px; margin-bottom:8px;">Nastavte sviatky alebo víkendy ako pracovné dni. Tieto dni budú dostupné na rezerváciu.</div>
           
-          <div id="working-day-overrides-list" style="margin-bottom:12px; max-height:200px; overflow-y:auto;">
-            <div class="muted" style="font-size:12px;">Žiadne výnimky</div>
-          </div>
-          
-          <div class="row" style="gap:6px; flex-wrap:wrap;">
-            <input type="date" id="working-day-override-date" style="width:160px;" />
-            <button class="btn" id="add-working-day-override">Pridať pracovný deň</button>
-          </div>
-        </div>
-        
-        <div id="holidays-management" style="margin-top:10px; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fef9c3;">
-          <div style="font-weight:600; margin-bottom:8px;">Sviatky (Konfigurácia)</div>
-          <div class="muted" style="font-size:12px; margin-bottom:8px;">Nastavte, ktoré dni v roku sú sviatky. Tieto dni nebudú dostupné na rezerváciu. Formát: MM-DD (napr. 12-25 pre 25. december). Húsvět sa počíta automaticky.</div>
-          
-          <div id="holidays-list" style="margin-bottom:12px; max-height:200px; overflow-y:auto;">
-            <div class="muted" style="font-size:12px;">Načítavam...</div>
-          </div>
-          
-          <div class="row" style="gap:6px; flex-wrap:wrap;">
-            <input type="text" id="new-holiday-input" placeholder="MM-DD (napr. 01-01)" style="width:160px;" maxlength="5" pattern="\d{2}-\d{2}" />
-            <button class="btn" id="add-holiday">Pridať sviatok</button>
-          </div>
-        </div>
-        
-        <div id="team-management" style="margin-top:10px;">
-          <table class="team-table">
-            <thead>
-              <tr>
-                <th>Meno</th>
-                <th>Rola</th>
-                <th id="actions-header">Akcie</th>
-              </tr>
-            </thead>
-            <tbody id="team-table-body"></tbody>
-          </table>
-          
-          <div class="row" style="margin-top:12px;" id="add-member-section">
-            <input id="new-member" placeholder="Meno Priezvisko" style="width:260px" />
-            <button class="btn" id="add-member">Pridať</button>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+            <div style="font-weight:600; font-size:13px; margin-bottom:6px;">Uložené heslo</div>
+            <div class="muted" style="font-size:12px; margin-bottom:6px;">Heslo pre prístup k nastaveniam je uložené v prehliadači.</div>
+            <button class="btn" id="clear-saved-password" style="background:#fef2f2; border-color:#fca5a5;">Vymazať uložené heslo</button>
           </div>
         </div>
 
-        <div class="row" style="justify-content:flex-end; margin-top:12px">
-          <button class="btn" id="save-settings">Uložiť</button>
+        <div class="row" style="justify-content:flex-end; margin-top:12px; position: sticky; bottom: 0; background: white; padding: 12px 0; border-top: 1px solid var(--border);">
+          <button class="btn primary" id="save-settings" style="min-width: 120px;">Uložiť</button>
         </div>
       </div>
     </div>
@@ -658,6 +671,7 @@
     })();
     
     var DEFAULT_SEATS = 7;
+    var PASSWORD_COOKIE_DAYS = 30; // Number of days to store settings password in cookie
     var TEAM_DEFAULT = [
       "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
       "Ján Tóth","Ivo Novysedlák","Kristína Jablonská","Zuzana Špalková","Roman Šajbidor",
@@ -847,7 +861,7 @@
         });
     }
 
-    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT), workingDayOverrides:[], holidays:["01-01","01-06","05-01","05-08","07-05","08-29","09-01","09-15","11-01","12-24","12-25","12-26"] };
+    var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT), workingDayOverrides:[], holidays:["01-01","01-06","05-01","05-08","07-05","08-29","09-01","09-15","11-01","12-24","12-25","12-26"], holidayNames:{} };
     var team = sortBySurname(TEAM_DEFAULT);
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
@@ -1934,6 +1948,7 @@
               }
               renderTeamTable();
               renderAdminList();
+              markSettingsModified();
             };
             tdActions.appendChild(btnAdmin);
           } else if (settings.adminUsers && settings.adminUsers.length > 0) {
@@ -1950,6 +1965,7 @@
               }
               renderTeamTable();
               renderAdminList();
+              markSettingsModified();
             };
             tdActions.appendChild(btnRemoveAdmin);
           }
@@ -1995,6 +2011,7 @@
                 renderTeamTable();
                 render();
                 showNotification("✓ Používateľ bol odstránený a jeho budúce rezervácie boli zrušené.", false);
+                markSettingsModified();
               });
             };
             tdActions.appendChild(btnRemove);
@@ -2102,6 +2119,7 @@
           if (!confirm("Odstrániť tento pracovný deň?")) return;
           settings.workingDayOverrides = settings.workingDayOverrides.filter(function(d) { return d !== dateStr; });
           renderWorkingDayOverrides();
+          markSettingsModified();
         };
         
         itemDiv.appendChild(labelSpan);
@@ -2123,7 +2141,7 @@
       var sortedHolidays = settings.holidays.slice().sort();
       
       // Holiday names map (Slovak holidays)
-      var holidayNames = {
+      var defaultHolidayNames = {
         "01-01": "Nový rok",
         "01-06": "Zjavenie Pána (Traja králi)",
         "05-01": "Sviatok práce",
@@ -2138,6 +2156,11 @@
         "12-26": "Druhý sviatok vianočný"
       };
       
+      // Initialize holidayNames if not present
+      if (!settings.holidayNames) {
+        settings.holidayNames = {};
+      }
+      
       sortedHolidays.forEach(function(holiday) {
         var itemDiv = document.createElement("div");
         itemDiv.style.padding = "6px 8px";
@@ -2151,7 +2174,8 @@
         
         var parts = holiday.split('-');
         var monthDay = parseInt(parts[1]) + '.' + parseInt(parts[0]) + '.';
-        var holidayName = holidayNames[holiday] || "Vlastný sviatok";
+        // Check custom name first, then default, then fallback to "Vlastný sviatok"
+        var holidayName = settings.holidayNames[holiday] || defaultHolidayNames[holiday] || "Vlastný sviatok";
         
         var labelSpan = document.createElement("span");
         labelSpan.style.fontSize = "13px";
@@ -2165,7 +2189,12 @@
         removeBtn.onclick = function() {
           if (!confirm("Odstrániť tento sviatok?")) return;
           settings.holidays = settings.holidays.filter(function(h) { return h !== holiday; });
+          // Also remove custom name if exists
+          if (settings.holidayNames && settings.holidayNames[holiday]) {
+            delete settings.holidayNames[holiday];
+          }
           renderHolidays();
+          markSettingsModified();
         };
         
         itemDiv.appendChild(labelSpan);
@@ -2321,6 +2350,22 @@
         });
     }
 
+    function markSettingsModified() {
+      var saveBtn = document.getElementById("save-settings");
+      if (saveBtn && !saveBtn.classList.contains("modified")) {
+        saveBtn.classList.add("modified");
+        saveBtn.textContent = "Uložiť zmeny";
+      }
+    }
+    
+    function clearSettingsModified() {
+      var saveBtn = document.getElementById("save-settings");
+      if (saveBtn) {
+        saveBtn.classList.remove("modified");
+        saveBtn.textContent = "Uložiť";
+      }
+    }
+
     document.getElementById("add-member").onclick=function(){
       var inp=document.getElementById("new-member"); var v=(inp.value||"").trim();
       if(!v) return;
@@ -2332,6 +2377,7 @@
       inp.value=""; 
       renderTeamTable();
       renderOwnerDropdown();
+      markSettingsModified();
     };
     
     document.getElementById("show-admin-password").onclick=function(){
@@ -2371,11 +2417,19 @@
       document.getElementById("admin-password-input").value = "";
       document.getElementById("admin-password-input").type = "password";
       document.getElementById("show-admin-password").textContent = "Zobraziť heslo";
+      markSettingsModified();
     };
 
     document.getElementById("open-sessions-from-settings").onclick=function(){
       document.getElementById("sessions-overlay").classList.add("show");
       renderSessions();
+    };
+    
+    document.getElementById("clear-saved-password").onclick=function(){
+      if (confirm("Vymazať uložené heslo? Pri ďalšom otvorení nastavení budete musieť zadať heslo znova.")) {
+        eraseCookie('settingsPassword');
+        showNotification("✓ Uložené heslo bolo vymazané!", false);
+      }
     };
 
     document.getElementById("add-working-day-override").onclick=function(){
@@ -2418,11 +2472,14 @@
       // Re-render
       renderWorkingDayOverrides();
       showNotification("✓ Pracovný deň pridaný!", false);
+      markSettingsModified();
     };
     
     document.getElementById("add-holiday").onclick=function(){
       var holidayInput = document.getElementById("new-holiday-input");
       var holidayValue = (holidayInput.value || "").trim();
+      var holidayNameInput = document.getElementById("new-holiday-name-input");
+      var holidayNameValue = (holidayNameInput.value || "").trim();
       
       if (!holidayValue) {
         alert("Prosím, zadajte dátum sviatku.");
@@ -2451,9 +2508,12 @@
         return;
       }
       
-      // Initialize array if needed
+      // Initialize arrays/objects if needed
       if (!settings.holidays) {
         settings.holidays = [];
+      }
+      if (!settings.holidayNames) {
+        settings.holidayNames = {};
       }
       
       // Check if already exists
@@ -2465,12 +2525,19 @@
       // Add the holiday
       settings.holidays.push(holidayValue);
       
-      // Clear input
+      // Add custom name if provided
+      if (holidayNameValue) {
+        settings.holidayNames[holidayValue] = holidayNameValue;
+      }
+      
+      // Clear inputs
       holidayInput.value = "";
+      holidayNameInput.value = "";
       
       // Re-render
       renderHolidays();
       showNotification("✓ Sviatok pridaný!", false);
+      markSettingsModified();
     };
 
     // Helper function to check if user can view a specific month
@@ -2585,21 +2652,40 @@
       
       // Always require password if there's an admin configured
       if(hasAdmin){
-        // Prompt for password
-        var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
-        if(password === "Cica432"){
-          // Super admin password - allow everything
-        } else if(password === (settings.adminPassword || "Jablko123")){
-          // Regular admin password - OK
-        } else {
-          alert("Nesprávne heslo!");
-          return;
+        // Check if password is stored in cookie
+        var savedPassword = getCookie('settingsPassword');
+        var passwordValid = false;
+        
+        if (savedPassword) {
+          // Verify saved password is still valid
+          if (savedPassword === "Cica432" || savedPassword === (settings.adminPassword || "Jablko123")) {
+            passwordValid = true;
+          } else {
+            // Saved password is no longer valid, clear it
+            eraseCookie('settingsPassword');
+          }
+        }
+        
+        if (!passwordValid) {
+          // Prompt for password
+          var password = prompt("Zadajte heslo pre prístup k nastaveniam:");
+          if(password === "Cica432"){
+            // Super admin password - allow everything
+            setCookie('settingsPassword', password, PASSWORD_COOKIE_DAYS);
+            passwordValid = true;
+          } else if(password === (settings.adminPassword || "Jablko123")){
+            // Regular admin password - OK
+            setCookie('settingsPassword', password, PASSWORD_COOKIE_DAYS);
+            passwordValid = true;
+          } else {
+            alert("Nesprávne heslo!");
+            return;
+          }
         }
       }
       
       document.getElementById("settings-overlay").classList.add("show");
-      document.getElementById("style-surname").checked=(settings.labelStyle||"surname")==="surname";
-      document.getElementById("style-initials").checked=(settings.labelStyle||"surname")==="initials";
+      clearSettingsModified(); // Clear modified state when opening
       renderTeamTable();
       renderAdminList();
       renderWorkingDayOverrides();
@@ -2661,10 +2747,10 @@
     };
     
     document.getElementById("save-settings").onclick=function(){
-      settings.labelStyle=document.getElementById("style-initials").checked?"initials":"surname";
       settings.team = team;
       saveSettings(function(){
         ui.selectedName=namesOrdered()[0];
+        clearSettingsModified();
         document.getElementById("settings-overlay").classList.remove("show");
         showNotification("✓ Nastavenia uložené!", false);
         render();
@@ -3033,6 +3119,11 @@
       // Initialize holidays if not present
       if (!settings.holidays) {
         settings.holidays = ["01-01","01-06","05-01","05-08","07-05","08-29","09-01","09-15","11-01","12-24","12-25","12-26"];
+      }
+      
+      // Initialize holidayNames if not present
+      if (!settings.holidayNames) {
+        settings.holidayNames = {};
       }
       
       // Initialize settings hash for change detection
