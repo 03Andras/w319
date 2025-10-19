@@ -81,6 +81,8 @@
       .row { gap: 6px; }
       header.sticky .row { flex-wrap: wrap; justify-content: center; }
       #today-summary { font-size: 11px; }
+      .layout-right { width: 100%; max-width: 100%; margin: 0 auto; }
+      .plan-wrap { max-width: 100%; width: 100%; }
     }
     /* Mobile phones - most compact */
     @media (max-width: 600px) {
@@ -102,8 +104,11 @@
       header.sticky .row { gap: 4px; }
       #today-summary { font-size: 10px; line-height: 1.3; }
       .modal { max-width: 95%; }
-      .plan-wrap { padding: 8px; }
+      .plan-wrap { padding: 8px; max-width: 100%; width: 100%; }
       svg { max-height: 180px; }
+      .layout-right { width: 100%; max-width: 100%; margin: 0; }
+      #full-office-msg { font-size: 9px; }
+      .weekday-header { font-size: 11px; }
     }
     /* Very small screens - ultra compact */
     @media (max-width: 400px) {
@@ -114,6 +119,9 @@
       .seatlist { font-size: 9px; }
       .btn { font-size: 10px; padding: 3px 6px; }
       input, select { font-size: 11px; }
+      #today-summary { font-size: 9px; }
+      .layout-right { width: 100%; }
+      .plan-wrap { max-width: 100%; width: 100%; }
     }
     .plan-wrap { position: fixed; top: 50%; right: 20px; transform: translateY(-50%); padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); z-index: 5; max-width: 420px; }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
@@ -1417,16 +1425,17 @@
         var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
         var warningDiv = document.createElement("div");
         warningDiv.style.gridColumn = "1 / -1";
-        warningDiv.style.padding = "20px";
+        warningDiv.style.padding = "30px 20px";
         warningDiv.style.background = "#e5e7eb";
         warningDiv.style.border = "2px solid #9ca3af";
         warningDiv.style.borderRadius = "12px";
         warningDiv.style.textAlign = "center";
-        warningDiv.style.color = "#4b5563";
-        warningDiv.style.fontWeight = "600";
-        warningDiv.style.fontSize = "16px";
+        warningDiv.style.color = "#374151";
+        warningDiv.style.fontWeight = "700";
+        warningDiv.style.fontSize = "18px";
+        warningDiv.style.lineHeight = "1.6";
         warningDiv.style.marginBottom = "12px";
-        warningDiv.innerHTML = "⚠️ Tento mesiac je zobrazený, ale rezervácie budú dostupné až od " + formattedDate;
+        warningDiv.innerHTML = "⚠️ Rezervácie na tento mesiac ešte nie sú dostupné<br><span style='font-size:15px; font-weight:600;'>Dostupné od: " + formattedDate + "</span>";
         cal.appendChild(warningDiv);
       }
       
