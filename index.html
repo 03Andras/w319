@@ -81,6 +81,8 @@
       .row { gap: 6px; }
       header.sticky .row { flex-wrap: wrap; justify-content: center; }
       #today-summary { font-size: 11px; }
+      .layout-right { width: 100%; max-width: 100%; margin: 0 auto; }
+      .plan-wrap { max-width: 100%; width: 100%; }
     }
     /* Mobile phones - most compact */
     @media (max-width: 600px) {
@@ -102,8 +104,11 @@
       header.sticky .row { gap: 4px; }
       #today-summary { font-size: 10px; line-height: 1.3; }
       .modal { max-width: 95%; }
-      .plan-wrap { padding: 8px; }
+      .plan-wrap { padding: 8px; max-width: 100%; width: 100%; }
       svg { max-height: 180px; }
+      .layout-right { width: 100%; max-width: 100%; margin: 0; }
+      #full-office-msg { font-size: 9px; }
+      .weekday-header { font-size: 11px; }
     }
     /* Very small screens - ultra compact */
     @media (max-width: 400px) {
@@ -114,6 +119,9 @@
       .seatlist { font-size: 9px; }
       .btn { font-size: 10px; padding: 3px 6px; }
       input, select { font-size: 11px; }
+      #today-summary { font-size: 9px; }
+      .layout-right { width: 100%; }
+      .plan-wrap { max-width: 100%; width: 100%; }
     }
     .plan-wrap { position: fixed; top: 50%; right: 20px; transform: translateY(-50%); padding:12px; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); z-index: 5; max-width: 420px; }
     .plan-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
@@ -268,6 +276,11 @@
             <span>Rozloženie stolov</span>
             <span class="muted" id="plan-date"></span>
           </div>
+          <div class="row" style="justify-content:flex-end; margin-bottom:8px;">
+            <select id="plan-day-picker" style="font-size:12px; padding:4px 8px;">
+              <option value="">Vybrať deň...</option>
+            </select>
+          </div>
           <svg id="svg-plan" viewBox="0 0 520 260" aria-label="Rozloženie stolov">
             <defs>
               <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -317,6 +330,9 @@
             <circle id="s7" class="chair" cx="370" cy="195" r="16"></circle>
             <text id="t7" class="chair-txt" x="370" y="195"></text>
             <text id="l7" class="lock-icon" x="385" y="185"></text>
+            
+            <!-- Full office message - shown when all seats are taken -->
+            <text id="full-office-msg" x="260" y="240" text-anchor="middle" style="font: 700 11px/1 Inter, system-ui, sans-serif; fill:#ef4444; display:none;">Tento deň je kancelária úplne obsadená</text>
           </svg>
 
           <div class="row" style="justify-content:flex-end; margin-top:10px;">
@@ -1143,8 +1159,10 @@
     function renderPlan(dStr){
       var s=getDaySeats(dStr);
       var myName = myCurrentName();
+      var taken = 0;
       for(var i=1;i<=DEFAULT_SEATS;i++){
         var c=document.getElementById("s"+i), t=document.getElementById("t"+i), li=document.getElementById("l"+i), n=s[i];
+        if(n) taken++;
         var isMine = (n && n===myName);
         if(n){ 
           c.classList.add("occ"); 
@@ -1215,6 +1233,16 @@
         })(i, !!n, isMine);
       }
       document.getElementById("plan-date").textContent = parseDateStr(dStr).toLocaleDateString("sk-SK");
+      
+      // Show/hide full office message in SVG
+      var fullMsg = document.getElementById("full-office-msg");
+      if(fullMsg){
+        if(taken >= DEFAULT_SEATS){
+          fullMsg.style.display = "block";
+        } else {
+          fullMsg.style.display = "none";
+        }
+      }
     }
 
     function selectDay(dateStr){ 
@@ -1246,6 +1274,8 @@
       // Populate weekday picker with only weekdays from current month (today and future only)
       var weekdayPicker = document.getElementById("weekday-picker");
       weekdayPicker.innerHTML = '<option value="">Vybrať deň...</option>';
+      var planDayPicker = document.getElementById("plan-day-picker");
+      planDayPicker.innerHTML = '<option value="">Vybrať deň...</option>';
       var total = daysInMonth(ui.year, ui.month);
       var weekdayDays = [];
       var today = new Date();
@@ -1263,8 +1293,15 @@
         opt.value = item.str;
         opt.textContent = item.day + ". " + item.date.toLocaleDateString("sk-SK", {weekday: 'short'});
         weekdayPicker.appendChild(opt);
+        
+        // Also add to plan day picker
+        var opt2 = document.createElement("option");
+        opt2.value = item.str;
+        opt2.textContent = item.day + ". " + item.date.toLocaleDateString("sk-SK", {weekday: 'short'});
+        planDayPicker.appendChild(opt2);
       });
       weekdayPicker.style.display = weekdayDays.length > 0 ? 'block' : 'none';
+      planDayPicker.style.display = weekdayDays.length > 0 ? 'block' : 'none';
 
       // Names - only show names from settings (team list)
       var sel=document.getElementById("name"); sel.innerHTML="";
@@ -1294,27 +1331,33 @@
         currentUserNameElement.style.display = "none";
       }
 
-      // Today and Tomorrow summary in header
-      var todayStr=fmtDate(new Date()); 
-      var todayDate = new Date();
-      var todaySeats=getDaySeats(todayStr); 
-      var todayList=[];
-      for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
+      // Today and Tomorrow summary in header - ALWAYS use actual today date, not the viewed month
+      var actualToday = new Date(); // Always use actual current date
+      actualToday.setHours(0, 0, 0, 0);
+      var todayStr=fmtDate(actualToday); 
       
-      // Sort today list alphabetically by surname
-      todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
-      
-      // Determine which days to show based on current day
-      var dayOfWeek = todayDate.getDay(); // 0=Sunday, 1=Monday, ..., 5=Friday, 6=Saturday
+      // Determine which days to show based on ACTUAL current day, not the viewed month
+      var dayOfWeek = actualToday.getDay(); // 0=Sunday, 1=Monday, ..., 5=Friday, 6=Saturday
       var summaryDiv=document.getElementById("today-summary");
+      
+      // Always load data for today's month to show in header
+      var todayYearMonth = getYearMonth(actualToday.getFullYear(), actualToday.getMonth());
+      var headerSchedule = scheduleCache[todayYearMonth] || {};
+      
+      function getHeaderSeats(dateStr) {
+        var rec = headerSchedule[dateStr];
+        if(rec) return rec;
+        var empty={}; for(var i=1;i<=DEFAULT_SEATS;i++) empty[i]="";
+        return empty;
+      }
       
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         // Weekend - show Monday and Tuesday
-        var monday = new Date(todayDate);
+        var monday = new Date(actualToday);
         var daysToAdd = (dayOfWeek === 0) ? 1 : 2; // Sunday->Monday(+1), Saturday->Monday(+2)
         monday.setDate(monday.getDate() + daysToAdd);
         var mondayStr = fmtDate(monday);
-        var mondaySeats = getDaySeats(mondayStr);
+        var mondaySeats = getHeaderSeats(mondayStr);
         var mondayList = [];
         for(var s2 in mondaySeats){ if(mondaySeats[s2]) mondayList.push(mondaySeats[s2]); }
         mondayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
@@ -1322,7 +1365,7 @@
         var tuesday = new Date(monday);
         tuesday.setDate(tuesday.getDate() + 1);
         var tuesdayStr = fmtDate(tuesday);
-        var tuesdaySeats = getDaySeats(tuesdayStr);
+        var tuesdaySeats = getHeaderSeats(tuesdayStr);
         var tuesdayList = [];
         for(var s3 in tuesdaySeats){ if(tuesdaySeats[s3]) tuesdayList.push(tuesdaySeats[s3]); }
         tuesdayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
@@ -1332,7 +1375,12 @@
         summaryDiv.innerHTML = "<div>Pondelok: " + (mondayNames || "nikto") + "</div><div>Utorok: " + (tuesdayNames || "nikto") + "</div>";
       } else {
         // Weekday - show today and tomorrow (or Monday if Friday)
-        var tomorrow = new Date(todayDate);
+        var todaySeats = getHeaderSeats(todayStr); 
+        var todayList = [];
+        for(var s in todaySeats){ if(todaySeats[s]) todayList.push(todaySeats[s]); }
+        todayList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
+        
+        var tomorrow = new Date(actualToday);
         if (dayOfWeek === 5) {
           // Friday - show Monday
           tomorrow.setDate(tomorrow.getDate() + 3);
@@ -1340,7 +1388,7 @@
           tomorrow.setDate(tomorrow.getDate() + 1);
         }
         var tomorrowStr = fmtDate(tomorrow);
-        var tomorrowSeats = getDaySeats(tomorrowStr);
+        var tomorrowSeats = getHeaderSeats(tomorrowStr);
         var tomorrowList = [];
         for(var s2 in tomorrowSeats){ if(tomorrowSeats[s2]) tomorrowList.push(tomorrowSeats[s2]); }
         tomorrowList.sort(function(a,b){ return a.split(" ").pop().localeCompare(b.split(" ").pop(), "sk"); });
@@ -1377,16 +1425,17 @@
         var formattedDate = availableDate.getDate() + '.' + (availableDate.getMonth() + 1) + '.' + availableDate.getFullYear();
         var warningDiv = document.createElement("div");
         warningDiv.style.gridColumn = "1 / -1";
-        warningDiv.style.padding = "20px";
+        warningDiv.style.padding = "30px 20px";
         warningDiv.style.background = "#e5e7eb";
         warningDiv.style.border = "2px solid #9ca3af";
         warningDiv.style.borderRadius = "12px";
         warningDiv.style.textAlign = "center";
-        warningDiv.style.color = "#4b5563";
-        warningDiv.style.fontWeight = "600";
-        warningDiv.style.fontSize = "16px";
+        warningDiv.style.color = "#374151";
+        warningDiv.style.fontWeight = "700";
+        warningDiv.style.fontSize = "18px";
+        warningDiv.style.lineHeight = "1.6";
         warningDiv.style.marginBottom = "12px";
-        warningDiv.innerHTML = "⚠️ Tento mesiac je zobrazený, ale rezervácie budú dostupné až od " + formattedDate;
+        warningDiv.innerHTML = "⚠️ Rezervácie na tento mesiac ešte nie sú dostupné<br><span style='font-size:15px; font-weight:600;'>Dostupné od: " + formattedDate + "</span>";
         cal.appendChild(warningDiv);
       }
       
@@ -1438,18 +1487,6 @@
           cell.appendChild(note);
         } else if(!nonWork){
           var listDiv=document.createElement("div"); listDiv.className="seatlist";
-          
-          // Add full office warning if all seats are taken
-          if(taken >= DEFAULT_SEATS){
-            var fullMsg=document.createElement("div");
-            fullMsg.style.color = "#ef4444";
-            fullMsg.style.fontWeight = "700";
-            fullMsg.style.fontSize = "11px";
-            fullMsg.style.padding = "4px 6px";
-            fullMsg.style.textAlign = "center";
-            fullMsg.textContent = "Tento deň je kancelária úplne obsadená";
-            listDiv.appendChild(fullMsg);
-          }
           
           for(var idx=1; idx<=DEFAULT_SEATS; idx++){
             var line=document.createElement("div"); 
@@ -1530,6 +1567,19 @@
             listDiv.appendChild(line);
           }
           cell.appendChild(listDiv);
+          
+          // Add full office warning below all seats (below table 7) if all seats are taken
+          if(taken >= DEFAULT_SEATS){
+            var fullMsg=document.createElement("div");
+            fullMsg.style.color = "#ef4444";
+            fullMsg.style.fontWeight = "700";
+            fullMsg.style.fontSize = "11px";
+            fullMsg.style.padding = "4px 6px";
+            fullMsg.style.textAlign = "center";
+            fullMsg.style.marginTop = "4px";
+            fullMsg.textContent = "Tento deň je kancelária úplne obsadená";
+            cell.appendChild(fullMsg);
+          }
         } else {
           var note=document.createElement("div"); note.className="muted"; note.style.marginTop="8px"; note.textContent = isWeekend(dt) ? "Víkend" : "Sviatok";
           cell.appendChild(note);
@@ -2225,6 +2275,26 @@
       var dateStr = e.target.value;
       if(dateStr){
         selectDay(dateStr);
+        // Scroll to the day in calendar
+        var allDays = document.querySelectorAll('.day');
+        allDays.forEach(function(day){
+          var dayText = day.querySelector('.row > div');
+          if(dayText){
+            var dayNum = parseInt(dayText.textContent.replace('.', ''));
+            var selectedDate = parseDateStr(dateStr);
+            if(!isNaN(dayNum) && dayNum === selectedDate.getDate()){
+              day.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+          }
+        });
+      }
+    };
+    document.getElementById("plan-day-picker").onchange=function(e){ 
+      var dateStr = e.target.value;
+      if(dateStr){
+        selectDay(dateStr);
+        // Also update the main weekday picker to match
+        document.getElementById("weekday-picker").value = dateStr;
         // Scroll to the day in calendar
         var allDays = document.querySelectorAll('.day');
         allDays.forEach(function(day){
