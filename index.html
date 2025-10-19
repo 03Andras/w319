@@ -173,6 +173,20 @@
   </style>
 </head>
 <body>
+  <!-- Loading Overlay - shown while data is loading -->
+  <div id="loading-overlay" class="pin-overlay" role="dialog" aria-labelledby="loading-title" aria-describedby="loading-message" style="display: none;">
+    <div class="pin-box">
+      <h2 id="loading-title">Načítavam dáta...</h2>
+      <p id="loading-message">Pripojujem sa k serveru...</p>
+      <div style="margin: 20px 0;">
+        <div style="width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;">
+          <div id="loading-progress" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
+        </div>
+      </div>
+      <div id="loading-error" style="color: #ef4444; font-size: 13px; margin-top: 10px; display: none;"></div>
+    </div>
+  </div>
+
   <!-- PIN Protection Overlay -->
   <div id="pin-overlay" class="pin-overlay">
     <div class="pin-box">
@@ -569,15 +583,121 @@
       }, displayTime);
     }
     
+    // Loading overlay helpers
+    function showLoadingOverlay(message) {
+      var overlay = document.getElementById("loading-overlay");
+      var titleEl = document.getElementById("loading-title");
+      var messageEl = document.getElementById("loading-message");
+      var errorEl = document.getElementById("loading-error");
+      
+      if (titleEl) titleEl.textContent = "Načítavam dáta...";
+      if (messageEl) messageEl.textContent = message || "Pripojujem sa k serveru...";
+      if (errorEl) errorEl.style.display = "none";
+      
+      if (overlay) overlay.style.display = "flex";
+    }
+    
+    function hideLoadingOverlay() {
+      var overlay = document.getElementById("loading-overlay");
+      if (overlay) overlay.style.display = "none";
+    }
+    
+    function updateLoadingProgress(percent) {
+      var progress = document.getElementById("loading-progress");
+      if (progress) progress.style.width = percent + "%";
+    }
+    
+    function showLoadingError(message) {
+      var errorEl = document.getElementById("loading-error");
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = "block";
+      }
+    }
+    
+    // Enhanced fetch with retry logic and Slovak error messages
+    function fetchWithRetry(url, options, maxRetries, description) {
+      maxRetries = maxRetries || 3;
+      description = description || "dáta";
+      
+      // Create a copy of options to avoid side effects
+      var fetchOptions = Object.assign({}, options || {});
+      
+      // Ensure proper headers for API calls
+      if (!fetchOptions.redirect) fetchOptions.redirect = 'follow';
+      if (!fetchOptions.credentials) fetchOptions.credentials = 'same-origin';
+      if (!fetchOptions.cache) fetchOptions.cache = 'no-cache';
+      
+      var attempt = 0;
+      
+      function tryFetch() {
+        attempt++;
+        var retryDelay = Math.min(200 * Math.pow(2, attempt - 1), 5000); // 200ms, 400ms, 800ms, max 5s
+        
+        return fetch(url, fetchOptions)
+          .then(function(response) {
+            // Check for HTTP errors
+            if (!response.ok) {
+              throw new Error('HTTP chyba ' + response.status + ': ' + response.statusText);
+            }
+            
+            // Check for redirect errors
+            if (response.redirected) {
+              console.warn('Response was redirected from', url, 'to', response.url);
+            }
+            
+            return response;
+          })
+          .catch(function(error) {
+            console.error('Pokus ' + attempt + '/' + maxRetries + ' pre ' + description + ' zlyhal:', error);
+            
+            if (attempt < maxRetries) {
+              // Show retry message with correct progress
+              var message = 'Chyba pri načítaní ' + description + '. Pokus ' + attempt + '/' + maxRetries + '. Skúšam znova...';
+              showLoadingError(message);
+              updateLoadingProgress((attempt / maxRetries) * 100); // Correct progress calculation
+              
+              // Wait and retry
+              return new Promise(function(resolve) {
+                setTimeout(resolve, retryDelay);
+              }).then(tryFetch);
+            } else {
+              // All retries failed
+              var finalError = 'Nepodarilo sa načítať ' + description + ' po ' + maxRetries + ' pokusoch. ' +
+                             'Skontrolujte pripojenie k serveru a skúste obnoviť stránku.';
+              showLoadingError(finalError);
+              throw new Error(finalError);
+            }
+          });
+      }
+      
+      return tryFetch();
+    }
+    
     // Server API functions
     function loadSettings(callback){ 
-      fetch('api.php?action=getSettings', {
-        redirect: 'follow',
-        credentials: 'same-origin'
-      })
-        .then(function(res){ return res.json(); })
-        .then(function(data){ callback(data); })
-        .catch(function(){ callback({ ownerName:"", labelStyle:"surname", adminUser:"", team: sortBySurname(TEAM_DEFAULT) }); });
+      showLoadingOverlay("Načítavam nastavenia...");
+      updateLoadingProgress(10);
+      
+      fetchWithRetry('api.php?action=getSettings', {}, 3, 'nastavenia')
+        .then(function(res){ 
+          updateLoadingProgress(20);
+          return res.json(); 
+        })
+        .then(function(data){ 
+          updateLoadingProgress(30);
+          callback(data); 
+        })
+        .catch(function(err){ 
+          console.error('Chyba pri načítaní nastavení:', err);
+          // Use default settings if API fails
+          callback({ 
+            ownerName:"", 
+            labelStyle:"surname", 
+            adminUser:"", 
+            team: sortBySurname(TEAM_DEFAULT) 
+          });
+        });
     }
     
     function saveSettings(callback){ 
@@ -608,13 +728,13 @@
     }
     
     function loadAuditLog(callback) {
-      fetch('api.php?action=getAuditLog', {
-        redirect: 'follow',
-        credentials: 'same-origin'
-      })
+      fetchWithRetry('api.php?action=getAuditLog', {}, 3, 'históriu zmien')
         .then(function(res){ return res.json(); })
         .then(function(data){ callback(data); })
-        .catch(function(){ callback([]); });
+        .catch(function(err){ 
+          console.error('Chyba pri načítaní histórie:', err);
+          callback([]); 
+        });
     }
 
     var settings = { ownerName:"", labelStyle:"surname", adminUser:"", adminUsers:[], adminPassword:"Jablko123", connectedUsers:[], team: sortBySurname(TEAM_DEFAULT) };
@@ -622,16 +742,6 @@
     var scheduleCache = {}; // cache per month: yearMonth -> data
     var currentYearMonth = "";
     var pollingInterval = null;
-    
-    // Constants for retry logic
-    var MAX_TOTAL_RETRIES = 10; // Maximum retry attempts across page reloads
-    var MAX_IN_PAGE_RETRIES = 3; // Maximum retry attempts per page load
-    var NOTIFICATION_DELAY_MS = 1500; // Delay before page reload to show notification
-    var RETRY_EXPIRY_MS = 5 * 60 * 1000; // Retry counter expires after 5 minutes
-    
-    // Slovak month names for error messages
-    var MONTH_NAMES_SK = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 
-                          'júl', 'august', 'september', 'október', 'november', 'december'];
     
     // Cookie management
     function setCookie(name, value, days) {
@@ -657,73 +767,6 @@
     
     function eraseCookie(name) {
       document.cookie = name + '=; Max-Age=-99999999;';
-    }
-
-    // Retry management for page reloads
-    function getLoadRetryCount(yearMonth) {
-      var key = 'loadRetry_' + yearMonth;
-      var stored = localStorage.getItem(key);
-      if (!stored) return 0;
-      var data = JSON.parse(stored);
-      // Check if retry is from last 5 minutes (stale retries should be reset)
-      var age = Date.now() - data.timestamp;
-      if (age > RETRY_EXPIRY_MS) {
-        localStorage.removeItem(key);
-        return 0;
-      }
-      return data.count || 0;
-    }
-
-    function incrementLoadRetryCount(yearMonth) {
-      var key = 'loadRetry_' + yearMonth;
-      var count = getLoadRetryCount(yearMonth) + 1;
-      localStorage.setItem(key, JSON.stringify({
-        count: count,
-        timestamp: Date.now()
-      }));
-      return count;
-    }
-
-    function clearLoadRetryCount(yearMonth) {
-      var key = 'loadRetry_' + yearMonth;
-      localStorage.removeItem(key);
-    }
-
-    function clearCacheAndReload(yearMonth, retryCount) {
-      // Show retry message in Slovak
-      var year = yearMonth.substring(0, 4);
-      var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
-      var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
-      
-      var message = 'Načítanie dát pre ' + monthName + ' ' + year + ' zlyhalo. Pokus ' + retryCount + '/' + MAX_TOTAL_RETRIES + '. Čistenie cache a opätovné načítanie...';
-      console.log(message);
-      
-      // Show notification to user before reloading
-      if (typeof showNotification === 'function') {
-        showNotification('⟳ ' + message, true);
-      }
-      
-      // Increment retry counter before reload
-      incrementLoadRetryCount(yearMonth);
-      
-      // Delay reload slightly to allow user to see notification
-      setTimeout(function() {
-        // Clear browser cache and reload
-        // Use cache-busting technique by adding timestamp to reload
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            for (var i = 0; i < names.length; i++) {
-              caches.delete(names[i]);
-            }
-          }).finally(function() {
-            // Force reload from server, bypassing cache
-            window.location.reload(true);
-          });
-        } else {
-          // For browsers that don't support Cache API, just do a hard reload
-          window.location.reload(true);
-        }
-      }, NOTIFICATION_DELAY_MS);
     }
 
     // Generate unique session ID
@@ -970,79 +1013,62 @@
         return;
       }
       
-      // Check current retry count across page reloads
-      var pageReloadRetries = getLoadRetryCount(yearMonth);
+      // Show loading message for the specific month
+      var monthNames = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 
+                        'júl', 'august', 'september', 'október', 'november', 'december'];
+      var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
+      var monthName = monthNames[monthIndex] || 'mesiac';
+      var yearStr = yearMonth.substring(0, 4);
       
-      // Retry logic for loading data
-      var retryDelay = 200; // ms base delay
+      showLoadingOverlay('Načítavam ' + monthName + ' ' + yearStr + '...');
+      updateLoadingProgress(40);
       
-      function attemptLoad(attemptNum) {
-        fetch('api.php?action=getSchedule&yearMonth=' + yearMonth + '&_t=' + Date.now(), {
-          redirect: 'follow',
-          credentials: 'same-origin',
-          cache: 'no-cache'
+      fetchWithRetry(
+        'api.php?action=getSchedule&yearMonth=' + yearMonth + '&_t=' + Date.now(),
+        {},
+        3,
+        'rozvrh pre ' + monthName + ' ' + yearStr
+      )
+        .then(function(res){ 
+          updateLoadingProgress(60);
+          return res.json(); 
         })
-          .then(function(res){ 
-            if (!res.ok) {
-              throw new Error('HTTP error ' + res.status);
+        .then(function(response){ 
+          updateLoadingProgress(80);
+          
+          // Handle new verified response format
+          var data = response;
+          if (response && typeof response === 'object' && response.hasOwnProperty('data')) {
+            data = response.data || {};
+            // Log verification info if needed
+            if (response.verified && response.retries > 0) {
+              console.log('Dáta načítané po ' + (response.retries + 1) + ' pokusoch');
             }
-            return res.json(); 
-          })
-          .then(function(response){ 
-            // Handle new verified response format
-            var data = response;
-            if (response && typeof response === 'object' && response.hasOwnProperty('data')) {
-              data = response.data || {};
-              // Log verification info if needed
-              if (response.verified && response.retries > 0) {
-                console.log('Data loaded after ' + (response.retries + 1) + ' attempts');
-              }
-            }
-            
-            // Success! Clear retry counter
-            clearLoadRetryCount(yearMonth);
-            
-            schedule = data || {}; 
-            scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
-            if(callback) callback(); 
-          })
-          .catch(function(err){ 
-            console.error('Error loading schedule (attempt ' + attemptNum + '/' + MAX_IN_PAGE_RETRIES + ', celkovo ' + (pageReloadRetries + 1) + '/' + MAX_TOTAL_RETRIES + '):', err);
-            
-            if (attemptNum < MAX_IN_PAGE_RETRIES) {
-              // Retry within same page load after exponential backoff delay
-              var delay = retryDelay * Math.pow(2, attemptNum - 1);
-              setTimeout(function() {
-                attemptLoad(attemptNum + 1);
-              }, delay);
-            } else {
-              // All in-page retries failed
-              var totalRetries = pageReloadRetries + 1;
-              
-              if (totalRetries >= MAX_TOTAL_RETRIES) {
-                // Maximum total retries reached - stop and show error
-                clearLoadRetryCount(yearMonth);
-                
-                var year = yearMonth.substring(0, 4);
-                var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
-                var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
-                
-                var errorMsg = '✗ Nepodarilo sa načítať dáta pre ' + monthName + ' ' + year + ' po ' + MAX_TOTAL_RETRIES + ' pokusoch. Skontrolujte pripojenie k serveru alebo skúste neskôr.';
-                showNotification(errorMsg, true);
-                console.error('Failed to load schedule after ' + MAX_TOTAL_RETRIES + ' total attempts (including page reloads)');
-                
-                schedule = {}; 
-                scheduleCache[yearMonth] = {};
-                if(callback) callback();
-              } else {
-                // Try cache clearing and page reload
-                clearCacheAndReload(yearMonth, totalRetries);
-              }
-            }
-          });
-      }
-      
-      attemptLoad(1);
+          }
+          
+          schedule = data || {}; 
+          scheduleCache[yearMonth] = JSON.parse(JSON.stringify(schedule));
+          updateLoadingProgress(100);
+          hideLoadingOverlay();
+          if(callback) callback(); 
+        })
+        .catch(function(err){ 
+          console.error('Chyba pri načítaní rozvrhu:', err);
+          
+          // Show final error message
+          var errorMsg = 'Nepodarilo sa načítať rozvrh pre ' + monthName + ' ' + yearStr + '. ' +
+                        'Skontrolujte pripojenie k serveru alebo skúste obnoviť stránku.';
+          showLoadingError(errorMsg);
+          showNotification('✗ ' + errorMsg, true);
+          
+          // Use empty schedule as fallback
+          schedule = {}; 
+          scheduleCache[yearMonth] = {};
+          
+          // Don't hide overlay so user knows there's an issue
+          // User must manually refresh the page
+          if(callback) callback();
+        });
     }
 
     function applyChanges(){ saveData(); render(); }
@@ -2392,12 +2418,15 @@
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(function() {
         var yearMonth = getYearMonth(ui.year, ui.month);
+        
+        // Use simple fetch for polling - no loading overlay, just silent retries
         fetch('api.php?action=getSchedule&yearMonth=' + yearMonth, {
           redirect: 'follow',
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          cache: 'no-cache'
         })
           .then(function(res){ 
-            if (!res.ok) throw new Error('HTTP error ' + res.status);
+            if (!res.ok) throw new Error('HTTP chyba ' + res.status);
             return res.json(); 
           })
           .then(function(response){ 
@@ -2416,7 +2445,7 @@
             updateLastUpdateTime();
           })
           .catch(function(err){ 
-            console.error('Polling error:', err); 
+            console.error('Chyba pri aktualizácii dát:', err); 
             // Don't show notification on polling errors to avoid spam
           });
         
@@ -2549,18 +2578,6 @@
     }
     
     // Load settings and data from server
-    // Check if we're recovering from a failed load attempt
-    (function checkRetryState() {
-      var yearMonth = getYearMonth(ui.year, ui.month);
-      var retryCount = getLoadRetryCount(yearMonth);
-      if (retryCount > 0) {
-        var year = yearMonth.substring(0, 4);
-        var monthIndex = parseInt(yearMonth.substring(4, 6)) - 1;
-        var monthName = MONTH_NAMES_SK[monthIndex] || 'mesiac';
-        console.log('Opätovný pokus načítania dát pre ' + monthName + ' ' + year + ' (pokus ' + (retryCount + 1) + '/' + MAX_TOTAL_RETRIES + ')');
-      }
-    })();
-    
     loadSettings(function(loadedSettings){
       settings = loadedSettings;
       team = loadedSettings.team || sortBySurname(TEAM_DEFAULT);
