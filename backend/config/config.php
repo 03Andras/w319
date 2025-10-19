@@ -10,6 +10,9 @@ define('SETTINGS_FILE', DATA_DIR . '/settings.json');
 define('AUDIT_LOG_FILE', DATA_DIR . '/audit_log.json');
 define('SESSIONS_FILE', DATA_DIR . '/sessions.json');
 
+// Version configuration
+define('APP_VERSION', '20251019v1');
+
 // Default settings
 define('DEFAULT_ADMIN_PASSWORD', 'Jablko123');
 define('DEFAULT_PIN_CODE', '147258369');

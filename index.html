@@ -547,6 +547,64 @@
   </div>
 
   <script>
+    // Version checking and cache invalidation
+    (function() {
+      // Check version from server and force reload if different
+      function checkVersion() {
+        fetch('api.php?action=getVersion', {
+          cache: 'no-cache',
+          redirect: 'follow',
+          credentials: 'same-origin'
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var serverVersion = data.version;
+          var storedVersion = localStorage.getItem('appVersion');
+          
+          if (storedVersion && storedVersion !== serverVersion) {
+            // Version mismatch - clear everything and reload
+            console.log('Version mismatch detected. Stored: ' + storedVersion + ', Server: ' + serverVersion);
+            
+            // Clear all caches
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Clear all cookies except PIN validation
+            var cookies = document.cookie.split(";");
+            for (var i = 0; i < cookies.length; i++) {
+              var cookie = cookies[i];
+              var eqPos = cookie.indexOf("=");
+              var name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+              // Keep pinValidated cookie
+              if (name !== 'pinValidated') {
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+              }
+            }
+            
+            // Store new version before reload
+            localStorage.setItem('appVersion', serverVersion);
+            
+            // Force full reload from server (bypass cache)
+            window.location.reload(true);
+          } else if (!storedVersion) {
+            // First time - just store the version
+            localStorage.setItem('appVersion', serverVersion);
+            console.log('App version stored: ' + serverVersion);
+          } else {
+            // Versions match - all good
+            console.log('App version OK: ' + serverVersion);
+          }
+        })
+        .catch(function(err) {
+          console.error('Version check failed:', err);
+          // Don't block the app if version check fails
+        });
+      }
+      
+      // Check version immediately on page load
+      checkVersion();
+    })();
+    
     var DEFAULT_SEATS = 7;
     var TEAM_DEFAULT = [
       "Eva Mészáros","Viera Krajníková","Nikola Oslanská","Soňa Žáková","Roman Blažek",
