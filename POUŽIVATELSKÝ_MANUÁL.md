@@ -23,7 +23,7 @@ Systém si tieto údaje zapamätá vo vašom webovom prehliadači. Pri ďalšom 
 
 ### Rezervácia pre seba
 
-Stačí kliknuť na deň a zarezervujete stôl.
+Kliknutím na deň a miesto vytvoríte rezerváciu.
 
 ### Rezervácia pre kolegu
 
@@ -38,7 +38,7 @@ Stačí kliknuť na deň a zarezervujete stôl.
 
 ### Zrušenie vlastnej rezervácie
 
-Stačí kliknuť na deň a zrušíte rezerváciu.
+Kliknutím na deň a vytvorenú rezerváciu, zrušíte rezerváciu.
 
 **Môžete zrušiť:**
 - Akúkoľvek rezerváciu **na vaše meno**
