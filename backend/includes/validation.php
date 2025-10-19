@@ -73,36 +73,150 @@ function isWeekend($dateString) {
 }
 
 /**
- * Validate that schedule data doesn't contain weekend bookings
+ * Calculate Easter Sunday for a given year (using Computus algorithm)
  */
-function validateNoWeekendBookings($scheduleData) {
-    $weekendBookings = [];
+function calculateEasterSunday($year) {
+    $a = $year % 19;
+    $b = intdiv($year, 100);
+    $c = $year % 100;
+    $d = intdiv($b, 4);
+    $e = $b % 4;
+    $f = intdiv($b + 8, 25);
+    $g = intdiv($b - $f + 1, 3);
+    $h = (19 * $a + $b - $d - $g + 15) % 30;
+    $i = intdiv($c, 4);
+    $k = $c % 4;
+    $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+    $m = intdiv($a + 11 * $h + 22 * $l, 451);
+    $month = intdiv($h + $l - 7 * $m + 114, 31);
+    $day = (($h + $l - 7 * $m + 114) % 31) + 1;
+    
+    $easterDate = new DateTime();
+    $easterDate->setDate($year, $month, $day);
+    $easterDate->setTime(0, 0, 0);
+    
+    return $easterDate;
+}
+
+/**
+ * Check if a date is a Slovak public holiday
+ */
+function isHoliday($dateString) {
+    $date = new DateTime($dateString);
+    $year = (int)$date->format('Y');
+    $month = (int)$date->format('n');
+    $day = (int)$date->format('j');
+    
+    // Fixed public holidays in Slovakia (MM-DD format)
+    $fixedHolidays = [
+        '01-01', // New Year's Day / Day of the Establishment of the Slovak Republic
+        '01-06', // Epiphany
+        '05-01', // Labour Day
+        '05-08', // Victory over Fascism Day
+        '07-05', // Saints Cyril and Methodius Day
+        '08-29', // Slovak National Uprising Anniversary
+        '09-01', // Constitution Day
+        '09-15', // Day of Our Lady of Sorrows
+        '11-01', // All Saints' Day
+        '12-24', // Christmas Eve
+        '12-25', // Christmas Day
+        '12-26', // St. Stephen's Day
+    ];
+    
+    $dateKey = sprintf('%02d-%02d', $month, $day);
+    if (in_array($dateKey, $fixedHolidays)) {
+        return true;
+    }
+    
+    // Calculate movable holidays (Easter-based)
+    $easterSunday = calculateEasterSunday($year);
+    
+    // Good Friday (2 days before Easter)
+    $goodFriday = clone $easterSunday;
+    $goodFriday->modify('-2 days');
+    
+    // Easter Monday (1 day after Easter)
+    $easterMonday = clone $easterSunday;
+    $easterMonday->modify('+1 day');
+    
+    // Compare dates
+    $currentDate = clone $date;
+    $currentDate->setTime(0, 0, 0);
+    
+    if ($currentDate->format('Y-m-d') === $goodFriday->format('Y-m-d')) {
+        return true;
+    }
+    
+    if ($currentDate->format('Y-m-d') === $easterMonday->format('Y-m-d')) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Check if a date is a non-working day (weekend or holiday), 
+ * considering working day overrides (exceptions)
+ */
+function isNonWorkingDay($dateString, $workingDayOverrides = []) {
+    // Check if this day is overridden as a working day
+    if (is_array($workingDayOverrides) && in_array($dateString, $workingDayOverrides)) {
+        return false; // This day is set as working, even if it's a weekend/holiday
+    }
+    
+    // Otherwise, check if it's a weekend or holiday
+    return isWeekend($dateString) || isHoliday($dateString);
+}
+
+/**
+ * Validate that schedule data doesn't contain non-working day bookings
+ * (weekends and holidays), unless they are explicitly set as working day exceptions
+ */
+function validateNoNonWorkingDayBookings($scheduleData) {
+    // Load settings to get working day overrides
+    $settingsFile = DATA_DIR . '/settings.json';
+    $settings = [];
+    if (file_exists($settingsFile)) {
+        $settingsJson = file_get_contents($settingsFile);
+        $settings = json_decode($settingsJson, true) ?? [];
+    }
+    
+    $workingDayOverrides = $settings['workingDayOverrides'] ?? [];
+    $nonWorkingBookings = [];
     
     foreach ($scheduleData as $dateString => $seats) {
-        if (isWeekend($dateString)) {
-            // Check if there are any non-empty bookings on this weekend day
+        // Check if this is a non-working day (weekend/holiday without override)
+        if (isNonWorkingDay($dateString, $workingDayOverrides)) {
+            // Check if there are any non-empty bookings on this non-working day
             foreach ($seats as $seatNum => $occupant) {
                 if (!empty($occupant) && trim($occupant) !== '') {
-                    $weekendBookings[] = $dateString;
+                    $nonWorkingBookings[] = $dateString;
                     break; // One is enough per date
                 }
             }
         }
     }
     
-    if (!empty($weekendBookings)) {
+    if (!empty($nonWorkingBookings)) {
         $dates = array_map(function($d) {
             $date = new DateTime($d);
             return $date->format('d.m.Y');
-        }, $weekendBookings);
+        }, $nonWorkingBookings);
         
         return [
             'valid' => false,
-            'message' => 'Rezervácia nie je možná cez víkend (sobota a nedeľa). Prosím, vyberte pracovný deň. Rezervácie na víkendové dni: ' . implode(', ', $dates)
+            'message' => 'Rezervácia nie je možná cez víkend alebo sviatok. Prosím, vyberte pracovný deň alebo pridajte výnimku v nastaveniach. Rezervácie na nepracovné dni: ' . implode(', ', $dates)
         ];
     }
     
     return ['valid' => true];
+}
+
+/**
+ * Legacy function name for backward compatibility
+ */
+function validateNoWeekendBookings($scheduleData) {
+    return validateNoNonWorkingDayBookings($scheduleData);
 }
 
 /**

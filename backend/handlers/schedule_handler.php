@@ -176,17 +176,17 @@ function handleSaveSchedule() {
         sendErrorResponse($validation['message']);
     }
     
-    // Validate no weekend bookings
-    $weekendValidation = validateNoWeekendBookings($scheduleData);
-    if (!$weekendValidation['valid']) {
+    // Validate no non-working day bookings (weekends/holidays unless overridden)
+    $nonWorkingDayValidation = validateNoNonWorkingDayBookings($scheduleData);
+    if (!$nonWorkingDayValidation['valid']) {
         // Log the rejected attempt
         $logDetails = array_merge($changeDetails, [
             'yearMonth' => $yearMonth,
-            'reason' => 'weekend_booking_attempted'
+            'reason' => 'non_working_day_booking_attempted'
         ]);
         addAuditLog($user, 'schedule_save_rejected', $logDetails);
         
-        sendErrorResponse($weekendValidation['message']);
+        sendErrorResponse($nonWorkingDayValidation['message']);
     }
     
     // Validate data integrity to prevent accidental mass deletion
