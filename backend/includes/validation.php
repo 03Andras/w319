@@ -100,35 +100,39 @@ function calculateEasterSunday($year) {
 
 /**
  * Check if a date is a Slovak public holiday
+ * Uses configurable holidays from settings.json
  */
-function isHoliday($dateString) {
+function isHoliday($dateString, $settings = null) {
     $date = new DateTime($dateString);
     $year = (int)$date->format('Y');
     $month = (int)$date->format('n');
     $day = (int)$date->format('j');
     
-    // Fixed public holidays in Slovakia (MM-DD format)
-    $fixedHolidays = [
-        '01-01', // New Year's Day / Day of the Establishment of the Slovak Republic
-        '01-06', // Epiphany
-        '05-01', // Labour Day
-        '05-08', // Victory over Fascism Day
-        '07-05', // Saints Cyril and Methodius Day
-        '08-29', // Slovak National Uprising Anniversary
-        '09-01', // Constitution Day
-        '09-15', // Day of Our Lady of Sorrows
-        '11-01', // All Saints' Day
-        '12-24', // Christmas Eve
-        '12-25', // Christmas Day
-        '12-26', // St. Stephen's Day
+    // Load settings if not provided
+    if ($settings === null) {
+        $settingsFile = DATA_DIR . '/settings.json';
+        $settings = [];
+        if (file_exists($settingsFile)) {
+            $settingsJson = file_get_contents($settingsFile);
+            $settings = json_decode($settingsJson, true) ?? [];
+        }
+    }
+    
+    // Default fixed public holidays in Slovakia (MM-DD format) - used if settings don't have holidays
+    $defaultHolidays = [
+        '01-01', '01-06', '05-01', '05-08', '07-05', '08-29',
+        '09-01', '09-15', '11-01', '12-24', '12-25', '12-26'
     ];
+    
+    // Use holidays from settings, or fall back to defaults
+    $fixedHolidays = $settings['holidays'] ?? $defaultHolidays;
     
     $dateKey = sprintf('%02d-%02d', $month, $day);
     if (in_array($dateKey, $fixedHolidays)) {
         return true;
     }
     
-    // Calculate movable holidays (Easter-based)
+    // Calculate movable holidays (Easter-based) - always calculated, not configurable
     $easterSunday = calculateEasterSunday($year);
     
     // Good Friday (2 days before Easter)
@@ -158,14 +162,14 @@ function isHoliday($dateString) {
  * Check if a date is a non-working day (weekend or holiday), 
  * considering working day overrides (exceptions)
  */
-function isNonWorkingDay($dateString, $workingDayOverrides = []) {
+function isNonWorkingDay($dateString, $workingDayOverrides = [], $settings = null) {
     // Check if this day is overridden as a working day
     if (is_array($workingDayOverrides) && in_array($dateString, $workingDayOverrides)) {
         return false; // This day is set as working, even if it's a weekend/holiday
     }
     
     // Otherwise, check if it's a weekend or holiday
-    return isWeekend($dateString) || isHoliday($dateString);
+    return isWeekend($dateString) || isHoliday($dateString, $settings);
 }
 
 /**
@@ -173,7 +177,7 @@ function isNonWorkingDay($dateString, $workingDayOverrides = []) {
  * (weekends and holidays), unless they are explicitly set as working day exceptions
  */
 function validateNoNonWorkingDayBookings($scheduleData) {
-    // Load settings to get working day overrides
+    // Load settings to get working day overrides and holidays
     $settingsFile = DATA_DIR . '/settings.json';
     $settings = [];
     if (file_exists($settingsFile)) {
@@ -186,7 +190,7 @@ function validateNoNonWorkingDayBookings($scheduleData) {
     
     foreach ($scheduleData as $dateString => $seats) {
         // Check if this is a non-working day (weekend/holiday without override)
-        if (isNonWorkingDay($dateString, $workingDayOverrides)) {
+        if (isNonWorkingDay($dateString, $workingDayOverrides, $settings)) {
             // Check if there are any non-empty bookings on this non-working day
             foreach ($seats as $seatNum => $occupant) {
                 if (!empty($occupant) && trim($occupant) !== '') {
@@ -205,7 +209,7 @@ function validateNoNonWorkingDayBookings($scheduleData) {
         
         return [
             'valid' => false,
-            'message' => 'Rezervácia nie je možná cez víkend alebo sviatok. Prosím, vyberte pracovný deň alebo pridajte výnimku v nastaveniach. Rezervácie na nepracovné dni: ' . implode(', ', $dates)
+            'message' => 'Rezervácia nie je možná cez víkend alebo sviatok. Prosím, vyberte pracovný deň. Rezervácie na nepracovné dni: ' . implode(', ', $dates)
         ];
     }
     

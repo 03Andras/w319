@@ -1253,6 +1253,13 @@
               return;
             }
             
+            // Check if date is a weekend or holiday
+            var dt = parseDateStr(dStr);
+            if(isNonWorking(dt)){
+              alert("Rezervácia nie je možná cez víkend alebo sviatok. Prosím, vyberte pracovný deň.");
+              return;
+            }
+            
             if(isMyBooking){
               // Quick delete own booking
               var seats = getDaySeats(dStr);
