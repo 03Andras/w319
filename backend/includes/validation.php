@@ -103,19 +103,29 @@ function calculateEasterSunday($year) {
  * Uses configurable holidays from settings.json
  */
 function isHoliday($dateString, $settings = null) {
+    static $cachedSettings = null;
+    
     $date = new DateTime($dateString);
     $year = (int)$date->format('Y');
     $month = (int)$date->format('n');
     $day = (int)$date->format('j');
     
-    // Load settings if not provided
+    // Load settings if not provided and not cached
     if ($settings === null) {
-        $settingsFile = DATA_DIR . '/settings.json';
-        $settings = [];
-        if (file_exists($settingsFile)) {
-            $settingsJson = file_get_contents($settingsFile);
-            $settings = json_decode($settingsJson, true) ?? [];
+        if ($cachedSettings === null) {
+            $settingsFile = DATA_DIR . '/settings.json';
+            $cachedSettings = [];
+            if (file_exists($settingsFile)) {
+                $settingsJson = @file_get_contents($settingsFile);
+                if ($settingsJson !== false) {
+                    $decoded = json_decode($settingsJson, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $cachedSettings = $decoded;
+                    }
+                }
+            }
         }
+        $settings = $cachedSettings;
     }
     
     // Default fixed public holidays in Slovakia (MM-DD format) - used if settings don't have holidays
