@@ -174,9 +174,9 @@
 </head>
 <body>
   <!-- Loading Overlay - shown while data is loading -->
-  <div id="loading-overlay" class="pin-overlay" style="display: none;">
+  <div id="loading-overlay" class="pin-overlay" role="dialog" aria-labelledby="loading-title" aria-describedby="loading-message" style="display: none;">
     <div class="pin-box">
-      <h2>Načítavam dáta...</h2>
+      <h2 id="loading-title">Načítavam dáta...</h2>
       <p id="loading-message">Pripojujem sa k serveru...</p>
       <div style="margin: 20px 0;">
         <div style="width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;">
@@ -586,10 +586,12 @@
     // Loading overlay helpers
     function showLoadingOverlay(message) {
       var overlay = document.getElementById("loading-overlay");
+      var titleEl = document.getElementById("loading-title");
       var messageEl = document.getElementById("loading-message");
       var errorEl = document.getElementById("loading-error");
       
-      if (messageEl) messageEl.textContent = message || "Načítavam dáta...";
+      if (titleEl) titleEl.textContent = "Načítavam dáta...";
+      if (messageEl) messageEl.textContent = message || "Pripojujem sa k serveru...";
       if (errorEl) errorEl.style.display = "none";
       
       if (overlay) overlay.style.display = "flex";
@@ -617,20 +619,22 @@
     function fetchWithRetry(url, options, maxRetries, description) {
       maxRetries = maxRetries || 3;
       description = description || "dáta";
-      options = options || {};
+      
+      // Create a copy of options to avoid side effects
+      var fetchOptions = Object.assign({}, options || {});
       
       // Ensure proper headers for API calls
-      if (!options.redirect) options.redirect = 'follow';
-      if (!options.credentials) options.credentials = 'same-origin';
-      if (!options.cache) options.cache = 'no-cache';
+      if (!fetchOptions.redirect) fetchOptions.redirect = 'follow';
+      if (!fetchOptions.credentials) fetchOptions.credentials = 'same-origin';
+      if (!fetchOptions.cache) fetchOptions.cache = 'no-cache';
       
       var attempt = 0;
       
       function tryFetch() {
         attempt++;
-        var retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        var retryDelay = Math.min(200 * Math.pow(2, attempt - 1), 5000); // 200ms, 400ms, 800ms, max 5s
         
-        return fetch(url, options)
+        return fetch(url, fetchOptions)
           .then(function(response) {
             // Check for HTTP errors
             if (!response.ok) {
@@ -648,10 +652,10 @@
             console.error('Pokus ' + attempt + '/' + maxRetries + ' pre ' + description + ' zlyhal:', error);
             
             if (attempt < maxRetries) {
-              // Show retry message
+              // Show retry message with correct progress
               var message = 'Chyba pri načítaní ' + description + '. Pokus ' + attempt + '/' + maxRetries + '. Skúšam znova...';
               showLoadingError(message);
-              updateLoadingProgress((attempt / maxRetries) * 50); // First 50% for retries
+              updateLoadingProgress((attempt / maxRetries) * 100); // Correct progress calculation
               
               // Wait and retry
               return new Promise(function(resolve) {
@@ -1027,9 +1031,6 @@
       )
         .then(function(res){ 
           updateLoadingProgress(60);
-          if (!res.ok) {
-            throw new Error('HTTP chyba ' + res.status);
-          }
           return res.json(); 
         })
         .then(function(response){ 
